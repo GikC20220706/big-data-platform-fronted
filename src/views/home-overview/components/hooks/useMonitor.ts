@@ -67,7 +67,7 @@ export function useMonitor(currentColony: Ref<ColonyInfo | undefined>, currentFr
     try {
       const response = await http.request({
         method: 'get',
-        url: '/api/v1/clusters/monitoring',
+        url: '/api/v1/cluster/hadoop',
         params: {
           cluster_id: currentColony.value?.id,
           time_range: currentFrequency.value?.value,

@@ -145,7 +145,7 @@ function queryVmChartData() {
   
   http.request({
     method: 'get',
-    url: '/api/v1/scheduler/executions/statistics',
+    url: '/api/v1/scheduler/task-statistics',
     params: {
       start_date: currentDate,
       end_date: currentDate,
