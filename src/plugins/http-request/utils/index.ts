@@ -283,6 +283,7 @@ const transform: AxiosTransform = {
 }
 
 const originOptions = {
+  baseURL: '',
   // 接口前缀
   prefixUrl: '',
   // 请求头
@@ -302,7 +303,7 @@ const originOptions = {
     joinParamsToUrl: false,
     formatDate: true,
     apiUrl: '',
-    urlPrefix: '',
+    urlPrefix: '/api',  // 如果后端API有统一前缀
     joinPrefix: true,
     joinTime: true,
     ignoreCancelToken: true,

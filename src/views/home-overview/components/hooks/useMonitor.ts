@@ -26,7 +26,8 @@ export function useMonitor(currentColony: Ref<ColonyInfo | undefined>, currentFr
   })
 
   const monitorDataList = computed<Array<MonitorInfo>>(() => {
-    return [
+    console.log('计算monitorDataList，currentInfo.value:', currentInfo.value)
+    const result = [
       {
         type: 'cpuPercent',
         name: 'CPU',
@@ -60,60 +61,55 @@ export function useMonitor(currentColony: Ref<ColonyInfo | undefined>, currentFr
         data: diskIoMonitorList.value
       }
     ]
+    console.log('计算后的monitorDataList:', result)
+    return result
   })
 
   // 新的监控数据查询函数
   async function queryMonitorData() {
-    try {
-      const response = await http.request({
-        method: 'get',
-        url: '/api/v1/cluster/hadoop',
-        params: {
-          cluster_id: currentColony.value?.id,
-          time_range: currentFrequency.value?.value,
-          metrics: ['cpu', 'memory', 'disk_io', 'storage']
-        }
-      })
-
-      if (response.success && response.data) {
-        const monitoringData = response.data
-        
-        // 更新时间轴数据
-        dateTimeList.value = monitoringData.timestamps || []
-        
-        // 更新各类监控数据
-        if (monitoringData.cpu) {
-          cpuMonitorDataList.value = monitoringData.cpu.values || []
-          currentInfo.value.cpuPercent = monitoringData.cpu.current || 0
-        }
-        
-        if (monitoringData.memory) {
-          memoryMonitorDataList.value = monitoringData.memory.values || []
-          currentInfo.value.usedMemorySize = monitoringData.memory.current || 0
-        }
-        
-        if (monitoringData.disk_io) {
-          diskIoMonitorList.value = monitoringData.disk_io.values || []
-          currentInfo.value.diskIoWriteSpeed = monitoringData.disk_io.current || 0
-        }
-        
-        if (monitoringData.storage) {
-          storageMonitorDataList.value = monitoringData.storage.values || []
-          currentInfo.value.usedStorageSize = monitoringData.storage.current || 0
-        }
+  try {
+    const response = await http.request({
+      method: 'get',
+      url: '/api/v1/cluster/metrics',
+      params: {
+        cluster_type: 'hadoop',
+        include_history: true,
+        history_hours: 24
       }
-    } catch (error) {
-      console.error('获取监控数据失败:', error)
-      // 设置默认数据
-      dateTimeList.value = Array.from({length: 10}, (_, i) => 
-        new Date(Date.now() - (9-i) * 60000).toLocaleTimeString()
-      )
-      cpuMonitorDataList.value = new Array(10).fill(0)
-      memoryMonitorDataList.value = new Array(10).fill(0)
-      diskIoMonitorList.value = new Array(10).fill(0)
-      storageMonitorDataList.value = new Array(10).fill(0)
+    })
+
+    console.log('API响应:', response)
+
+    if (response.success && response.data) {
+      const metricsData = response.data
+      
+      // 更新当前值（取最后一个值）
+      const cpuData = metricsData.cpu_usage || []
+      const memoryData = metricsData.memory_usage || []
+      const diskData = metricsData.disk_usage || []
+      const networkData = metricsData.network_io || []
+      
+      currentInfo.value = {
+        cpuPercent: cpuData[cpuData.length - 1] || 0,
+        usedMemorySize: memoryData[memoryData.length - 1] || 0,
+        diskIoWriteSpeed: networkData[networkData.length - 1] || 0,
+        usedStorageSize: diskData[diskData.length - 1] || 0
+      }
+      
+      // 更新历史数据用于图表
+      dateTimeList.value = metricsData.time_series || []
+      cpuMonitorDataList.value = metricsData.cpu_usage || []
+      memoryMonitorDataList.value = metricsData.memory_usage || []
+      storageMonitorDataList.value = metricsData.disk_usage || []
+      diskIoMonitorList.value = metricsData.network_io || []
+      
+      console.log('更新后的currentInfo:', currentInfo.value)
+      console.log('历史数据长度:', dateTimeList.value.length)
     }
+  } catch (error) {
+    console.error('获取监控数据失败:', error)
   }
+}
 
   function parseMonitorData(data?: string) {
     // 保留原有的解析逻辑，如果需要的话

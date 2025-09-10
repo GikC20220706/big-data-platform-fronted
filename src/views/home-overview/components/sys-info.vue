@@ -68,13 +68,17 @@ async function querySysInfoData() {
       // 集群统计
       http.request({
         method: 'get',
-        url: '/api/v1/clusters/'
+        url: '/api/v1/cluster/'
       }),
       // 数据源统计
       http.request({
         method: 'get',
-        url: '/api/v1/datasources/',
-        params: { page: 1, page_size: 1000 }
+        url: '/api/v1/integration/sources',
+        params: {
+          include_table_count: false,
+          table_count_limit: 1000,
+          fast_mode: true
+        }
       }),
       // 工作流统计
       http.request({
@@ -101,11 +105,8 @@ async function querySysInfoData() {
 
     // 处理数据源统计
     if (datasourceRes.status === 'fulfilled' && datasourceRes.value?.success) {
-      const datasources = datasourceRes.value.data?.items || datasourceRes.value.data?.content || []
-      const activeCount = datasources.filter((ds: any) => 
-        ds.status === 'active' || ds.status === 'ACTIVE'
-      ).length
-      updateSysInfoItem('datasourceMonitor', activeCount, datasources.length)
+      const { connected, total } = datasourceRes.value.data
+      updateSysInfoItem('datasourceMonitor', connected, total)
     }
 
     // 处理工作流统计
