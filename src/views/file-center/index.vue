@@ -117,26 +117,34 @@ const typeList = ref([
 function initData(tableLoading?: boolean) {
   loading.value = tableLoading ? false : true
   networkError.value = networkError.value || false
+
   GetFileCenterList({
-    page: tableConfig.pagination.currentPage - 1,
-    pageSize: tableConfig.pagination.pageSize,
-    searchKeyWord: keyword.value,
+    page: tableConfig.pagination.currentPage - 1, // 前端页码从1开始，传给后端需要-1
+    page_size: tableConfig.pagination.pageSize,
+    keyword: keyword.value,
     type: type.value
   })
-    .then((res: any) => {
-      tableConfig.tableData = res.data.content
-      tableConfig.pagination.total = res.data.totalElements
-      loading.value = false
-      tableConfig.loading = false
-      networkError.value = false
-    })
-    .catch(() => {
-      tableConfig.tableData = []
-      tableConfig.pagination.total = 0
-      loading.value = false
-      tableConfig.loading = false
-      networkError.value = true
-    })
+      .then((res: any) => {
+        // 🆕 适配新的响应格式
+        const data = res.data
+
+        // 后端返回的是 items 数组
+        tableConfig.tableData = data.items || []
+
+        // 后端返回的是 total
+        tableConfig.pagination.total = data.total || 0
+
+        loading.value = false
+        tableConfig.loading = false
+        networkError.value = false
+      })
+      .catch(() => {
+        tableConfig.tableData = []
+        tableConfig.pagination.total = 0
+        loading.value = false
+        tableConfig.loading = false
+        networkError.value = true
+      })
 }
 
 function addData() {
@@ -144,10 +152,12 @@ function addData() {
     return new Promise((resolve: any, reject: any) => {
       const formData = new FormData()
       formData.append('type', data.type)
-      formData.append('remark', data.remark)
+      formData.append('remark', data.remark || '')
       formData.append('file', data.fileData)
+
       UploadFileData(formData).then((res: any) => {
-        ElMessage.success(res.data.msg)
+        // 🆕 适配新的响应格式
+        ElMessage.success(res.message || '上传成功')
         initData()
         resolve()
       }).catch((error: any) => {
@@ -161,10 +171,11 @@ function editData(data: any) {
   addModalRef.value.showModal((formData: any) => {
     return new Promise((resolve: any, reject: any) => {
       UpdateFileData({
-        fileId: formData.id,
+        id: formData.id,
         remark: formData.remark
       }).then((res: any) => {
-        ElMessage.success(res.msg)
+        // 🆕 适配新的响应格式
+        ElMessage.success(res.message || '更新成功')
         initData()
         resolve()
       }).catch((error: any) => {
@@ -177,24 +188,32 @@ function editData(data: any) {
 // 下载
 function downloadFile(data: any) {
   data.downloadLoading = true
+
   DownloadFileData({
-    fileId: data.id
+    id: data.id
   }).then((res: any) => {
-    const blobURL = URL.createObjectURL(res);
+    // 🆕 修改：处理blob响应
+    const blob = new Blob([res], { type: 'application/octet-stream' })
+    const blobURL = URL.createObjectURL(blob)
 
     // 创建一个链接元素并模拟点击下载
-    const link = document.createElement('a');
-    link.href = blobURL;
-    link.download = data.fileName; // 根据实际情况设置下载文件的名称和扩展名
-    link.click();
+    const link = document.createElement('a')
+    link.href = blobURL
+    link.download = data.originalFilename || data.fileName // 使用原始文件名
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    link.click()
 
-    // 释放Blob URL
-    URL.revokeObjectURL(blobURL);
-
+    // 清理
+    document.body.removeChild(link)
+    URL.revokeObjectURL(blobURL)
 
     data.downloadLoading = false
-  }).catch(() => {
+    ElMessage.success('下载成功')
+  }).catch((error) => {
     data.downloadLoading = false
+    ElMessage.error('下载失败')
+    console.error('下载错误:', error)
   })
 }
 
@@ -206,12 +225,24 @@ function deleteData(data: any) {
     type: 'warning'
   }).then(() => {
     DeleteFileData({
-      fileId: data.id
+      id: data.id,
+      force: false
     }).then((res: any) => {
-      ElMessage.success(res.msg)
-      initData()
+      ElMessage.success(res.message || '删除成功')
+      // 🆕 修改：立即刷新列表，传true保持当前loading状态为false
+      initData(true)  // 改为 true，避免页面loading遮罩
     })
-    .catch(() => {})
+        .catch((error: any) => {
+          // 如果是因为被引用而无法删除，提示用户
+          if (error.response?.status === 400) {
+            ElMessage.warning(error.response.data.detail || '删除失败')
+          } else {
+            ElMessage.error('删除失败')
+          }
+        })
+  }).catch(() => {
+    // 用户取消删除
+    console.log('取消删除')
   })
 }
 

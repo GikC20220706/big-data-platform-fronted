@@ -39,18 +39,18 @@ export const BreadCrumbList: Array<BreadCrumb> = [
 
 export const colConfigs: colConfig[] = [
   {
-    prop: 'fileName',
+    prop: 'fileName',  // 🆕 确认字段名
     title: '名称',
     minWidth: 125,
     showOverflowTooltip: true
   },
   {
-    prop: 'fileSize',
+    prop: 'fileSize',  // 🆕 后端已格式化好的大小
     title: '大小',
     minWidth: 110
   },
   {
-    prop: 'fileType',
+    prop: 'fileType',  // 🆕 确认字段名
     title: '类型',
     minWidth: 110,
     formatter: (data: any) => {
@@ -60,16 +60,16 @@ export const colConfigs: colConfig[] = [
         LIB: '依赖',
         EXCEL: 'Excel'
       }
-      return obj[data.cellValue]
+      return obj[data.cellValue] || data.cellValue
     }
   },
   {
-    prop: 'createUsername',
+    prop: 'createUsername',  // 🆕 确认字段名
     title: '创建人',
     minWidth: 120
   },
   {
-    prop: 'createDateTime',
+    prop: 'createDatetime',  // 🆕 确认字段名（注意是驼峰命名）
     title: '创建时间',
     minWidth: 140
   },

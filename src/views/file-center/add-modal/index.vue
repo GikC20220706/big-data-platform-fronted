@@ -119,8 +119,9 @@ function showModal(cb: () => void, data: any): void {
   modelConfig.title = '上传资源'
 
   if (data) {
+    // 编辑模式
     modelConfig.title = '编辑资源'
-    formData.type = data.fileType
+    formData.type = data.fileType  // 🆕 确认字段名
     formData.remark = data.remark
     formData.id = data.id
     renderSence.value = 'edit'
