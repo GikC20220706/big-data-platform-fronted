@@ -40,34 +40,46 @@ export const BreadCrumbList: Array<BreadCrumb> = [
 
 export const colConfigs: colConfig[] = [
     {
-        prop: 'name',
-        title: '名称',
+        prop: 'catalog_name',
+        title: '目录名称',
         minWidth: 125,
         customSlot: 'nameSlot'
     },
     {
-        prop: 'tableRule',
-        title: '表名规范',
-        minWidth: 125
+        prop: 'catalog_type',
+        title: '类型',
+        minWidth: 100,
+        formatter: (data: any) => {
+            const typeMap: any = {
+                'domain': '业务域',
+                'subject': '主题域',
+                'dataset': '数据集'
+            }
+            return typeMap[data.cellValue] || data.cellValue
+        }
     },
     {
-        prop: 'parentNameList',
-        title: '父级分层',
-        minWidth: 140,
-        customSlot: 'parentNameSlot'
+        prop: 'level',
+        title: '层级',
+        width: 80
     },
     {
-        prop: 'remark',
-        title: '备注',
+        prop: 'asset_count',
+        title: '资产数量',
+        width: 100
+    },
+    {
+        prop: 'description',
+        title: '描述',
         minWidth: 120
     },
     {
-        prop: 'createUsername',
+        prop: 'created_by',
         title: '创建人',
         minWidth: 120
     },
     {
-        prop: 'createDateTime',
+        prop: 'created_at',
         title: '创建时间',
         minWidth: 140
     },

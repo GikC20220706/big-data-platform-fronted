@@ -46,8 +46,9 @@ import AcquisitionInstance from '@/views/metadata-page/acquisition-instance/inde
 import MetadataManagement from '@/views/metadata-page/metadata-management/index.vue'
 
 // 数据分层
-import DataLayer from '@/views/data-planning/data-layer/index.vue'
-import LayerArea from '@/views/data-planning/data-layer/layer-area/index.vue'
+import DataCatalog from '@/views/data-planning/data-layer/index.vue'
+import CatalogArea from '@/views/data-planning/data-layer/layer-area/index.vue'
+import DataAsset from '@/views/data-planning/data-asset/index.vue'
 import FieldFormat from '@/views/data-planning/field-format/index.vue'
 import DataModel from '@/views/data-planning/data-model/index.vue'
 import ModelField from '@/views/data-planning/data-model/model-field/index.vue'
@@ -242,12 +243,17 @@ export default [
   {
     path: 'data-layer',
     name: 'data-layer',
-    component: DataLayer
+    component: DataCatalog
+  },
+  {
+    path: 'data-asset',
+    name: 'data-asset',
+    component: DataAsset
   },
   {
     path: 'layer-area',
     name: 'layer-area',
-    component: LayerArea
+    component: CatalogArea
   },
   {
     path: 'field-format',

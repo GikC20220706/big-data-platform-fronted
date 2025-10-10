@@ -60,10 +60,17 @@ export const menuListData: Array<Menu> = [
     children: [
       {
         code: 'data-layer',
-        name: '数据分层',
+        name: '数据资源目录',
         icon: 'Files',
         authType: [ 'ROLE_TENANT_MEMBER', 'ROLE_TENANT_ADMIN' ],
         childPage: ['layer-area']
+      },
+      {
+        code: 'data-asset',
+        name: '数据资产',
+        icon: 'Files',
+        authType: [ 'ROLE_TENANT_MEMBER', 'ROLE_TENANT_ADMIN' ],
+        childPage: []
       },
       {
         code: 'field-format',

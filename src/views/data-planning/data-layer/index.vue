@@ -4,7 +4,7 @@
         <div class="zqy-table-top">
             <div class="btn-container">
                 <el-button type="primary" @click="addData">
-                    新建分层
+                    新建目录
                 </el-button>
             </div>
             <div class="zqy-seach">
@@ -78,13 +78,19 @@ import LoadingPage from '@/components/loading/index.vue'
 import AddModal from './add-modal/index.vue'
 import DataModelDetail from './layer-area/data-model-detail/index.vue'
 import { BreadCrumbList, TableConfig } from './list.config'
-import { DeleteDataLayerData, GetDataLayerTreeData, GetDataLayerList, SaveDataLayerData, UpdateDataLayerData, GetParentLayerNode } from '@/services/data-layer.service'
+import { GetCatalogTree, CreateCatalog, UpdateCatalog, DeleteCatalog } from '@/services/data-catalog.service'
+import { GetParentLayerNode } from '@/services/data-layer.service' // 保留这个，后面可能用
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-
+const BreadCrumbList = [
+  {
+    name: '数据资源目录',
+    code: 'data-catalog'
+  }
+]
 const breadCrumbList = reactive(BreadCrumbList)
 const tableConfig: any = reactive(TableConfig)
 const keyword = ref('')
@@ -96,57 +102,34 @@ const parentLayerId = ref<string>('')
 const dataModelDetailRef = ref<any>(null)
 
 function initData(tableLoading?: boolean) {
-    loading.value = tableLoading ? false : true
-    networkError.value = networkError.value || false
-    if (tableType.value !== 'all') {
-        GetDataLayerTreeData({
-            page: tableConfig.pagination.currentPage - 1,
-            pageSize: tableConfig.pagination.pageSize,
-            searchKeyWord: keyword.value,
-            parentLayerId: parentLayerId.value
-        }).then((res: any) => {
-            tableConfig.tableData = res.data.content
-            tableConfig.pagination.total = res.data.totalElements
-            loading.value = false
-            tableConfig.loading = false
-            networkError.value = false
+  loading.value = tableLoading ? false : true
+  networkError.value = networkError.value || false
 
-            if (route.query && route.query.parentLayerId) {
-                router.replace({
-                    name: 'data-layer'
-                })
-            }
-        }).catch(() => {
-            tableConfig.tableData = []
-            tableConfig.pagination.total = 0
-            loading.value = false
-            tableConfig.loading = false
-            networkError.value = true
-        })
-    } else {
-        GetDataLayerList({
-            page: tableConfig.pagination.currentPage - 1,
-            pageSize: tableConfig.pagination.pageSize,
-            searchKeyWord: keyword.value
-        }).then((res: any) => {
-            tableConfig.tableData = res.data.content
-            tableConfig.pagination.total = res.data.totalElements
-            loading.value = false
-            tableConfig.loading = false
-            networkError.value = false
-            if (route.query && route.query.parentLayerId) {
-                router.replace({
-                    name: 'data-layer'
-                })
-            }
-        }).catch(() => {
-            tableConfig.tableData = []
-            tableConfig.pagination.total = 0
-            loading.value = false
-            tableConfig.loading = false
-            networkError.value = true
-        })
+  // 调用新接口
+  GetCatalogTree({
+    parent_id: parentLayerId.value || undefined,
+    include_inactive: false
+  }).then((res: any) => {
+    if (res.success) {
+      tableConfig.tableData = res.data || []
+      tableConfig.pagination.total = res.data?.length || 0
     }
+    loading.value = false
+    tableConfig.loading = false
+    networkError.value = false
+
+    if (route.query && route.query.parentLayerId) {
+      router.replace({
+        name: 'data-layer'
+      })
+    }
+  }).catch(() => {
+    tableConfig.tableData = []
+    tableConfig.pagination.total = 0
+    loading.value = false
+    tableConfig.loading = false
+    networkError.value = true
+  })
 }
 
 function changeTypeEvent(e: string) {
@@ -160,50 +143,77 @@ function changeTypeEvent(e: string) {
 }
 
 function addData() {
-    addModalRef.value.showModal((data: any) => {
-        return new Promise((resolve: any, reject: any) => {
-            const params = {
-                ...data,
-                parentLayerId: !data.parentLayerId ? null : data.parentLayerId
-            }
-            SaveDataLayerData(params).then((res: any) => {
-                ElMessage.success(res.msg)
-                initData()
-                resolve()
-            }).catch((error: any) => {
-                reject(error)
-            })
-        })
-    }, null, parentLayerId.value)
+  addModalRef.value.showModal((data: any) => {
+    return new Promise((resolve: any, reject: any) => {
+      const params = {
+        catalog_name: data.name,
+        catalog_code: data.code || `CAT_${Date.now()}`,
+        catalog_type: 'domain', // 根据实际选择
+        parent_id: data.parentLayerId || null,
+        level: 1, // 根据实际选择
+        description: data.remark,
+        sort_order: 0
+      }
+
+      CreateCatalog(params).then((res: any) => {
+        if (res.success) {
+          ElMessage.success(res.message || '创建成功')
+          initData()
+          resolve()
+        } else {
+          ElMessage.error(res.message || '创建失败')
+          reject()
+        }
+      }).catch((error: any) => {
+        ElMessage.error('创建失败')
+        reject(error)
+      })
+    })
+  }, null, parentLayerId.value)
 }
 function editData(data: any) {
-    addModalRef.value.showModal((data: any) => {
-        return new Promise((resolve: any, reject: any) => {
-            UpdateDataLayerData(data).then((res: any) => {
-                ElMessage.success(res.msg)
-                initData()
-                resolve()
-            }).catch((error: any) => {
-                reject(error)
-            })
-        })
-    }, data)
+  addModalRef.value.showModal((updateData: any) => {
+    return new Promise((resolve: any, reject: any) => {
+      const params = {
+        catalog_name: updateData.name,
+        description: updateData.remark
+      }
+
+      UpdateCatalog(data.id, params).then((res: any) => {
+        if (res.success) {
+          ElMessage.success(res.message || '更新成功')
+          initData()
+          resolve()
+        } else {
+          ElMessage.error(res.message || '更新失败')
+          reject()
+        }
+      }).catch((error: any) => {
+        ElMessage.error('更新失败')
+        reject(error)
+      })
+    })
+  }, data)
 }
 
 // 删除
 function deleteData(data: any) {
-    ElMessageBox.confirm('确定删除该分层吗？', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-    }).then(() => {
-        DeleteDataLayerData({
-            id: data.id
-        }).then((res: any) => {
-            ElMessage.success(res.msg)
-            initData()
-        }).catch(() => { })
+  ElMessageBox.confirm('确定删除该目录吗？', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    DeleteCatalog(data.id, false).then((res: any) => {
+      if (res.success) {
+        ElMessage.success(res.message || '删除成功')
+        initData()
+      } else {
+        ElMessage.error(res.message || '删除失败')
+      }
+    }).catch(() => {
+      ElMessage.error('删除失败')
     })
+  })
 }
 
 // 跳转分层数据模型
