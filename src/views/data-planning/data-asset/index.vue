@@ -44,6 +44,8 @@
       </div>
     </LoadingPage>
     <AddModal ref="addModalRef" @refresh="initData" />
+    <DetailModal ref="detailModalRef" />
+    <ImportModal ref="importModalRef" @refresh="initData" />
   </div>
 </template>
 
@@ -52,6 +54,8 @@ import { reactive, ref, onMounted } from 'vue'
 import Breadcrumb from '@/layout/bread-crumb/index.vue'
 import LoadingPage from '@/components/loading/index.vue'
 import AddModal from './add-modal/index.vue'
+import DetailModal from './detail-modal/index.vue'
+import ImportModal from './import-modal/index.vue'
 import { BreadCrumbList, TableConfig } from './list.config'
 import { GetAssetList, DeleteAsset } from '@/services/data-asset.service'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -62,6 +66,8 @@ const keyword = ref('')
 const loading = ref(false)
 const networkError = ref(false)
 const addModalRef = ref<any>(null)
+const detailModalRef = ref<any>(null)
+const importModalRef = ref<any>(null)
 
 function initData(tableLoading?: boolean) {
   loading.value = tableLoading ? false : true
@@ -93,7 +99,7 @@ function addData() {
 }
 
 function importFromSource() {
-  ElMessage.info('从数据源导入功能开发中')
+  importModalRef.value.showModal()
 }
 
 function editData(data: any) {
@@ -101,7 +107,7 @@ function editData(data: any) {
 }
 
 function viewDetail(data: any) {
-  ElMessage.info('详情功能开发中')
+  detailModalRef.value.showModal(data.id)
 }
 
 function deleteData(data: any) {

@@ -98,3 +98,17 @@ export function ImportFromDataSource(params: any): Promise<any> {
         params: params
     })
 }
+
+/**
+ * 获取数据源的表列表
+ */
+export function GetSourceTables(sourceName: string, database?: string): Promise<any> {
+    return http.request({
+        method: 'get',
+        url: `/api/v1/integration/sources/${sourceName}/tables`,
+        params: {
+            database: database || undefined,
+            limit: 1000
+        }
+    })
+}

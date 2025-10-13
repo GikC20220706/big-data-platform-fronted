@@ -40,10 +40,16 @@ export const BreadCrumbList: Array<BreadCrumb> = [
 
 export const colConfigs: colConfig[] = [
     {
-        prop: 'catalog_name',
+        prop: 'catalog_name',  // ← 改成后端返回的字段名
         title: '目录名称',
-        minWidth: 125,
+        minWidth: 150,
         customSlot: 'nameSlot'
+    },
+    {
+        prop: 'catalog_code',
+        title: '目录编码',
+        minWidth: 150,
+        showOverflowTooltip: true
     },
     {
         prop: 'catalog_type',
@@ -61,33 +67,42 @@ export const colConfigs: colConfig[] = [
     {
         prop: 'level',
         title: '层级',
-        width: 80
+        width: 80,
+        align: 'center'
     },
     {
         prop: 'asset_count',
         title: '资产数量',
-        width: 100
+        width: 100,
+        align: 'center'
+    },
+    {
+        prop: 'path',
+        title: '路径',
+        minWidth: 200,
+        showOverflowTooltip: true
     },
     {
         prop: 'description',
         title: '描述',
-        minWidth: 120
+        minWidth: 150,
+        showOverflowTooltip: true
     },
     {
         prop: 'created_by',
         title: '创建人',
-        minWidth: 120
+        minWidth: 100
     },
     {
         prop: 'created_at',
         title: '创建时间',
-        minWidth: 140
+        minWidth: 160
     },
     {
         title: '操作',
         align: 'center',
         customSlot: 'options',
-        width: 90,
+        width: 160,
         fixed: 'right'
     }
 ]

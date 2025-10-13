@@ -29,7 +29,7 @@
       <el-form-item label="所属目录" prop="catalog_id">
         <el-select
             v-model="formData.catalog_id"
-            placeholder="请选择目录"
+            placeholder="请选择数据集目录"
             filterable
             style="width: 100%"
         >
@@ -40,6 +40,9 @@
               :value="item.id"
           />
         </el-select>
+        <div style="color: #999; font-size: 12px; margin-top: 5px;">
+          只显示数据集层级（level=3）的目录
+        </div>
       </el-form-item>
 
       <el-form-item label="数据源" prop="data_source_id">
@@ -48,13 +51,12 @@
             placeholder="请选择数据源"
             filterable
             style="width: 100%"
-            @change="dataSourceChange"
         >
           <el-option
               v-for="item in dataSourceList"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
+              :key="item.name"
+              :label="`${item.name} (${item.type})`"
+              :value="item.name"
           />
         </el-select>
       </el-form-item>
@@ -183,7 +185,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, defineEmits, onMounted } from 'vue'
+import { ref, reactive, defineEmits } from 'vue'
 import BlockModal from '@/components/block-modal/index.vue'
 import { ElMessage } from 'element-plus'
 import { CreateAsset, UpdateAsset } from '@/services/data-asset.service'
@@ -314,24 +316,37 @@ function loadCatalogList() {
     include_inactive: false
   }).then((res: any) => {
     if (res.success && res.data) {
-      // 扁平化树形结构
+      // 只显示level=3的数据集
       catalogList.value = flattenTree(res.data)
+      if (catalogList.value.length === 0) {
+        ElMessage.warning('暂无数据集目录，请先创建数据集（层级3）')
+      }
     }
   }).catch(() => {
     catalogList.value = []
   })
 }
 
-function flattenTree(tree: any[], level: number = 0): any[] {
+function flattenTree(tree: any[], parentPath: string = ''): any[] {
   let result: any[] = []
   tree.forEach((node: any) => {
-    result.push({
-      id: node.id,
-      catalog_name: '　'.repeat(level) + node.catalog_name,
-      level: level
-    })
+    // 构建完整路径
+    const currentPath = parentPath
+        ? `${parentPath} / ${node.catalog_name}`
+        : node.catalog_name
+
+    // 只添加 level=3 的数据集
+    if (node.level === 3) {
+      result.push({
+        id: node.id,
+        catalog_name: currentPath,  // 显示完整路径
+        level: node.level
+      })
+    }
+
+    // 递归处理子节点
     if (node.children && node.children.length > 0) {
-      result = result.concat(flattenTree(node.children, level + 1))
+      result = result.concat(flattenTree(node.children, currentPath))
     }
   })
   return result
@@ -339,15 +354,22 @@ function flattenTree(tree: any[], level: number = 0): any[] {
 
 function loadDataSourceList() {
   GetDatasourceList({
-    page: 0,
-    pageSize: 1000,
-    searchKeyWord: ''
+    page: 1,
+    page_size: 100,
+    include_table_count: false,
+    fast_mode: true
   }).then((res: any) => {
-    if (res.data && res.data.content) {
-      dataSourceList.value = res.data.content
+    console.log('数据源列表响应:', res)
+    if (res.code === 200 && res.data && res.data.sources) {
+      dataSourceList.value = res.data.sources
+    } else {
+      dataSourceList.value = []
+      ElMessage.warning('未获取到数据源列表')
     }
-  }).catch(() => {
+  }).catch((err) => {
+    console.error('加载数据源失败:', err)
     dataSourceList.value = []
+    ElMessage.error('加载数据源失败')
   })
 }
 

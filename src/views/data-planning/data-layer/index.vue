@@ -3,8 +3,12 @@
     <div class="zqy-seach-table data-layer">
         <div class="zqy-table-top">
             <div class="btn-container">
-                <el-button type="primary" @click="addData">
-                    新建目录
+                <el-button
+                    type="primary"
+                    @click="addData"
+                    :disabled="isMaxLevel"
+                >
+                  新建目录
                 </el-button>
             </div>
             <div class="zqy-seach">
@@ -34,7 +38,7 @@
                             v-if="tableType === 'layer'"
                             class="name-click"
                             @click="showDetail(scopeSlot.row)"
-                        >{{ scopeSlot.row.name }}</span>
+                        >{{ scopeSlot.row.catalog_name }}</span>
                         <span v-else>{{ scopeSlot.row.name }}</span>
                     </template>
                     <template #parentNameSlot="scopeSlot">
@@ -47,21 +51,20 @@
                     </template>
                     <template #options="scopeSlot">
                         <div class="btn-group btn-group-msg">
-                            <span @click="dataModelPage(scopeSlot.row)">模型</span>
                             <el-dropdown trigger="click">
                                 <span class="click-show-more">更多</span>
                                 <template #dropdown>
                                     <el-dropdown-menu>
                                         <el-dropdown-item @click="editData(scopeSlot.row)">编辑</el-dropdown-item>
                                         <el-dropdown-item @click="deleteData(scopeSlot.row)">删除</el-dropdown-item>
-                                        <el-dropdown-item @click="layerAreaView(scopeSlot.row)">领域</el-dropdown-item>
+                                        <el-dropdown-item @click="layerAreaView(scopeSlot.row)">子目录</el-dropdown-item>
                                     </el-dropdown-menu>
                                 </template>
                             </el-dropdown>
                         </div>
                     </template>
                 </BlockTable>
-                <el-button class="back-up" @click="showParentDetail" v-if="parentLayerId && tableType === 'layer'">
+                <el-button class="back-up" @click="showParentDetail" v-if="parentLayerId">
                     返回上一分层
                 </el-button>
             </div>
@@ -72,13 +75,19 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import Breadcrumb from '@/layout/bread-crumb/index.vue'
 import LoadingPage from '@/components/loading/index.vue'
 import AddModal from './add-modal/index.vue'
 import DataModelDetail from './layer-area/data-model-detail/index.vue'
 import { BreadCrumbList, TableConfig } from './list.config'
-import { GetCatalogTree, CreateCatalog, UpdateCatalog, DeleteCatalog } from '@/services/data-catalog.service'
+import {
+  GetCatalogTree,
+  CreateCatalog,
+  UpdateCatalog,
+  DeleteCatalog,
+  GetCatalogDetail
+} from '@/services/data-catalog.service'
 import { GetParentLayerNode } from '@/services/data-layer.service' // 保留这个，后面可能用
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
@@ -99,11 +108,32 @@ const networkError = ref(false)
 const addModalRef = ref<any>(null)
 const tableType = ref<string>('layer')
 const parentLayerId = ref<string>('')
+const parentIdStack = ref<number[]>([])
+const currentLevelInfo = ref<any>(null)
+// 计算当前是否已达到最大层级
+const isMaxLevel = computed(() => {
+  if (!parentLayerId.value) return false  // 根目录可以创建
+  if (!currentLevelInfo.value) return false
+  return currentLevelInfo.value.level >= 3  // level=3（数据集）不能再创建子目录
+})
 const dataModelDetailRef = ref<any>(null)
 
 function initData(tableLoading?: boolean) {
   loading.value = tableLoading ? false : true
   networkError.value = networkError.value || false
+
+  // 如果有父级ID，获取当前层级信息
+  if (parentLayerId.value) {
+    GetCatalogDetail(parentLayerId.value).then((res: any) => {
+      if (res.success && res.data) {
+        currentLevelInfo.value = res.data
+      }
+    }).catch(() => {
+      currentLevelInfo.value = null
+    })
+  } else {
+    currentLevelInfo.value = null
+  }
 
   // 调用新接口
   GetCatalogTree({
@@ -145,17 +175,8 @@ function changeTypeEvent(e: string) {
 function addData() {
   addModalRef.value.showModal((data: any) => {
     return new Promise((resolve: any, reject: any) => {
-      const params = {
-        catalog_name: data.name,
-        catalog_code: data.code || `CAT_${Date.now()}`,
-        catalog_type: 'domain', // 根据实际选择
-        parent_id: data.parentLayerId || null,
-        level: 1, // 根据实际选择
-        description: data.remark,
-        sort_order: 0
-      }
-
-      CreateCatalog(params).then((res: any) => {
+      // 数据已经在弹窗中格式化好了，直接使用
+      CreateCatalog(data).then((res: any) => {
         if (res.success) {
           ElMessage.success(res.message || '创建成功')
           initData()
@@ -174,12 +195,11 @@ function addData() {
 function editData(data: any) {
   addModalRef.value.showModal((updateData: any) => {
     return new Promise((resolve: any, reject: any) => {
-      const params = {
-        catalog_name: updateData.name,
-        description: updateData.remark
-      }
+      // 从updateData中提取id，其他数据已经格式化好了
+      const catalogId = updateData.id
+      delete updateData.id  // 删除id，因为UpdateCatalog的id是路径参数
 
-      UpdateCatalog(data.id, params).then((res: any) => {
+      UpdateCatalog(catalogId, updateData).then((res: any) => {
         if (res.success) {
           ElMessage.success(res.message || '更新成功')
           initData()
@@ -247,24 +267,62 @@ function inputEvent(e: string) {
 
 // 跳转子集分层
 function showDetail(data: any) {
-    parentLayerId.value = data.id
-    tableConfig.pagination.currentPage = 1
-    tableConfig.pagination.pageSize = 10
-    initData()
+  // 如果是数据集（level=3），跳转到数据资产页面
+  if (data.level === 3) {
+    ElMessageBox.confirm(
+        '数据集是最后一层目录，是否前往数据资产模块查看该数据集下的表？',
+        '提示',
+        {
+          confirmButtonText: '前往数据资产',
+          cancelButtonText: '取消',
+          type: 'info'
+        }
+    ).then(() => {
+      router.push({
+        name: 'data-asset',
+        query: {
+          catalog_id: data.id,
+          catalog_name: data.catalog_name
+        }
+      })
+    }).catch(() => {
+      // 用户点击取消，不做任何操作
+    })
+    return
+  }
+
+  // 否则进入子目录
+  if (parentLayerId.value) {
+    parentIdStack.value.push(Number(parentLayerId.value))
+  } else {
+    parentIdStack.value.push(0)
+  }
+
+  parentLayerId.value = data.id
+  tableConfig.pagination.currentPage = 1
+  tableConfig.pagination.pageSize = 10
+  initData()
 }
 
 // 跳转父级分层
 function showParentDetail() {
-    GetParentLayerNode({
-        id: parentLayerId.value
-    }).then((res: any) => {
-        parentLayerId.value = res.data.parentLayerId
-        tableConfig.pagination.currentPage = 1
-        tableConfig.pagination.pageSize = 10
-        initData()
-    }).catch((error: any) => {
-        console.error('获取父级节点失败', error)
-    })
+  if (parentIdStack.value.length === 0 && !parentLayerId.value) {
+    ElMessage.warning('已经是顶级目录了')
+    return
+  }
+
+  if (parentIdStack.value.length === 0) {
+    // 回到根目录
+    parentLayerId.value = null
+  } else {
+    // 从栈中弹出父级ID
+    const parentId = parentIdStack.value.pop()
+    parentLayerId.value = parentId === 0 ? null : String(parentId)
+  }
+
+  tableConfig.pagination.currentPage = 1
+  tableConfig.pagination.pageSize = 10
+  initData()
 }
 
 function handleSizeChange(e: number) {

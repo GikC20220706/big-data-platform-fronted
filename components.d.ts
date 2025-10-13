@@ -11,6 +11,7 @@ declare module 'vue' {
     BlockModal: typeof import('./src/components/block-modal/index.vue')['default']
     BlockTable: typeof import('./src/components/block-table/index.vue')['default']
     CodeMirror: typeof import('./src/components/code-mirror/index.vue')['default']
+    ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElBreadcrumb: typeof import('element-plus/es')['ElBreadcrumb']
     ElBreadcrumbItem: typeof import('element-plus/es')['ElBreadcrumbItem']
@@ -73,6 +74,7 @@ declare module 'vue' {
     ZSvgIcon: typeof import('./src/components/z-svg-icon/index.vue')['default']
   }
   export interface ComponentCustomProperties {
+    vInfiniteScroll: typeof import('element-plus/es')['ElInfiniteScroll']
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }
