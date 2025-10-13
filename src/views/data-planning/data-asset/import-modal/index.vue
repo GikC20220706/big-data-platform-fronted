@@ -371,50 +371,78 @@ async function loadTables(reset = true) {
 function submitForm() {
   formRef.value.validate((valid: boolean) => {
     if (valid) {
-      // 验证导入方式
-      if (importMode.value === 'manual' && (!formData.value.selected_tables || formData.value.selected_tables.length === 0)) {
-        ElMessage.warning('请至少选择一张表')
+      // 验证数据源
+      if (!formData.value.data_source_id) {
+        ElMessage.warning('请选择数据源')
         return
       }
 
-      if (importMode.value === 'manual' && formData.value.selected_tables.length > 100) {
-        ElMessage.warning('手动选择最多只能导入100张表')
-        return
+      // 验证导入方式
+      if (importMode.value === 'manual') {
+        if (!formData.value.selected_tables || formData.value.selected_tables.length === 0) {
+          ElMessage.warning('请至少选择一张表')
+          return
+        }
+
+        if (formData.value.selected_tables.length > 100) {
+          ElMessage.warning('手动选择最多只能导入100张表')
+          return
+        }
       }
 
       modelConfig.okConfig.loading = true
       submitLoading.value = true
 
+      // 构建提交数据
       const submitData: any = {
-        data_source_id: formData.value.data_source_id,
-        catalog_id: formData.value.catalog_id,
-        database_name: formData.value.database_name || undefined,
-        include_columns: formData.value.include_columns
+        data_source_id: formData.value.data_source_id,  // 实际是 name
+        catalog_id: Number(formData.value.catalog_id),
+        include_columns: Boolean(formData.value.include_columns)
       }
 
-      // 根据导入方式设置不同的参数
+      // 数据库名（可选）
+      if (formData.value.database_name && formData.value.database_name.trim()) {
+        submitData.database_name = formData.value.database_name.trim()
+      }
+
+      // 根据导入方式设置 table_patterns
       if (importMode.value === 'pattern') {
-        submitData.table_patterns = formData.value.table_patterns.length > 0
-            ? formData.value.table_patterns
-            : undefined
+        // 模式匹配
+        if (formData.value.table_patterns && formData.value.table_patterns.length > 0) {
+          // 过滤空值
+          const patterns = formData.value.table_patterns.filter((p: string) => p && p.trim())
+          if (patterns.length > 0) {
+            submitData.table_patterns = patterns
+          }
+          // 如果过滤后为空，不传 table_patterns（后端会导入全部）
+        }
+        // 如果用户没有填写任何规则，不传 table_patterns（后端会导入全部）
       } else {
-        // 手动选择模式，将选择的表转换为精确匹配的模式
+        // 手动选择
         submitData.table_patterns = formData.value.selected_tables
       }
 
+      console.log('最终提交参数:', submitData)
+
       ImportFromDataSource(submitData).then((res: any) => {
-        if (res.success) {
-          const result = res.data
+        console.log('导入响应:', res)
+
+        if (res.success || res.code === 200) {
+          const result = res.data || res
+          const successCount = result.success_count || 0
+          const failedCount = result.failed_count || 0
+
           ElMessage.success(
-              `导入完成！成功: ${result.success_count}，失败: ${result.failed_count}`
+              `导入完成！成功: ${successCount}，失败: ${failedCount}`
           )
           closeEvent()
           emit('refresh')
         } else {
           ElMessage.error(res.message || '导入失败')
         }
-      }).catch(() => {
-        ElMessage.error('导入失败')
+      }).catch((error: any) => {
+        console.error('导入失败:', error)
+        ElMessage.error(error.message || '导入失败')
       }).finally(() => {
         submitLoading.value = false
         modelConfig.okConfig.loading = false
