@@ -50,8 +50,10 @@ import DataCatalog from '@/views/data-planning/data-layer/index.vue'
 import CatalogArea from '@/views/data-planning/data-layer/layer-area/index.vue'
 import DataAsset from '@/views/data-planning/data-asset/index.vue'
 import FieldFormat from '@/views/data-planning/field-format/index.vue'
+import IndicatorSystem from '@/views/data-planning/indicator-system/index.vue'
 import DataModel from '@/views/data-planning/data-model/index.vue'
 import ModelField from '@/views/data-planning/data-model/model-field/index.vue'
+
 
 export default [
   {
@@ -259,6 +261,11 @@ export default [
     path: 'field-format',
     name: 'field-format',
     component: FieldFormat
+  },
+  {
+    path: 'indicator-system',
+    name: 'indicator-system',
+    component: IndicatorSystem
   },
   {
     path: 'data-model',

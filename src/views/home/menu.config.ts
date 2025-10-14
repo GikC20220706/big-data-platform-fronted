@@ -80,6 +80,13 @@ export const menuListData: Array<Menu> = [
         childPage: []
       },
       {
+        code: 'indicator-system',
+        name: '指标体系建设',
+        icon: 'DataAnalysis',
+        authType: [ 'ROLE_TENANT_MEMBER', 'ROLE_TENANT_ADMIN' ],
+        childPage: []
+      },
+      {
         code: 'data-model',
         name: '数据模型',
         icon: 'List',
