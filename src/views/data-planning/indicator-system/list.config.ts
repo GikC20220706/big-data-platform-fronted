@@ -4,8 +4,9 @@
 import type { BreadCrumb } from '@/types/common-types'
 
 interface colConfig {
+    type?: string
     prop?: string
-    title: string
+    title?: string
     align?: string
     showOverflowTooltip?: boolean
     customSlot?: string
@@ -38,6 +39,10 @@ export const BreadCrumbList: Array<BreadCrumb> = [
 ]
 
 export const colConfigs: colConfig[] = [
+    {
+        type: 'selection',
+        width: 55
+    },
     {
         prop: 'indicator_name',
         title: '指标名称',

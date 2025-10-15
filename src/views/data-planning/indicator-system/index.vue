@@ -3,25 +3,32 @@
   <div class="zqy-seach-table">
     <div class="zqy-table-top">
       <div class="zqy-table-top-left">
-        <el-button type="primary" @click="addData">
-          新建指标
-        </el-button>
-        <el-button
-            type="danger"
-            :disabled="selectedIds.length === 0"
-            @click="batchDelete"
-        >
-          批量删除 ({{ selectedIds.length }})
-        </el-button>
-        <el-button @click="showImportModal">
-          批量导入
-        </el-button>
-        <el-button @click="downloadTemplate">
-          下载模板
-        </el-button>
-        <el-button @click="batchExport">
-          导出数据
-        </el-button>
+        <!-- 主操作组 -->
+        <div class="button-group">
+          <el-button type="primary" @click="addData">
+            新建指标
+          </el-button>
+          <el-button
+              type="danger"
+              :disabled="selectedIds.length === 0"
+              @click="batchDelete"
+          >
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
+        </div>
+
+        <!-- 导入导出组 -->
+        <div class="button-group">
+          <el-button @click="showImportModal">
+            批量导入
+          </el-button>
+          <el-button @click="downloadTemplate">
+            下载模板
+          </el-button>
+          <el-button @click="batchExport" :loading="exportLoading">
+            导出数据
+          </el-button>
+        </div>
       </div>
 
       <div class="zqy-seach">
@@ -117,6 +124,7 @@
               :table-config="tableConfigWithoutPagination"
               @size-change="handleSizeChange"
               @current-change="handleCurrentChange"
+              @selection-change="handleSelectionChange"
           >
             <!-- 🆕 添加复选框列 -->
             <template #selection>
@@ -475,49 +483,79 @@ function softDeleteData(row: any) {
 }
 
 function batchExport() {
-  const loading = ElMessage({
+  const loadingMsg = ElMessage({
     message: '正在生成导出文件...',
     type: 'info',
     duration: 0
   })
 
-  // 构建导出参数（与查询参数一致）
-  const params: any = {
-    keyword: keyword.value,
-    business_domain: filterForm.business_domain,
-    indicator_category: filterForm.indicator_category,
-    collection_frequency: filterForm.collection_frequency,
-    is_active: filterForm.is_active
+  // 构建导出参数
+  const params: any = {}
+
+  if (keyword.value) {
+    params.keyword = keyword.value
+  }
+  if (filterForm.business_domain) {
+    params.business_domain = filterForm.business_domain
+  }
+  if (filterForm.indicator_category) {
+    params.indicator_category = filterForm.indicator_category
+  }
+  if (filterForm.collection_frequency) {
+    params.collection_frequency = filterForm.collection_frequency
+  }
+  if (filterForm.is_active !== null) {
+    params.is_active = filterForm.is_active
   }
 
   BatchExportIndicators(params)
       .then((response: any) => {
-        loading.close()
+        loadingMsg.close()
 
-        if (!response || !(response instanceof Blob)) {
+        // 🔥 提取真正的 Blob
+        let blob = response
+
+        // 如果响应被包装了，尝试提取 data
+        if (response && response.data) {
+          blob = response.data
+        }
+
+        // 验证是否为 Blob
+        if (!(blob instanceof Blob)) {
+          console.error('响应不是 Blob 对象:', blob)
           ElMessage.error('导出失败：文件格式错误')
           return
         }
 
         // 创建下载链接
-        const url = window.URL.createObjectURL(response)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `指标体系数据_${new Date().getTime()}.xlsx`
-        link.style.display = 'none'
-        document.body.appendChild(link)
-        link.click()
+        try {
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
 
-        setTimeout(() => {
-          document.body.removeChild(link)
-          window.URL.revokeObjectURL(url)
-        }, 100)
+          const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+          link.download = `指标体系数据_${timestamp}.xlsx`
 
-        ElMessage.success('导出成功')
+          link.style.display = 'none'
+          document.body.appendChild(link)
+          link.click()
+
+          // 清理
+          setTimeout(() => {
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+          }, 100)
+
+          ElMessage.success('导出成功')
+        } catch (error) {
+          console.error('创建下载链接失败:', error)
+          ElMessage.error('导出失败：无法创建下载链接')
+        }
       })
-      .catch(() => {
-        loading.close()
-        ElMessage.error('导出失败')
+      .catch((error: any) => {
+        loadingMsg.close()
+        console.error('导出失败:', error)
+        ElMessage.error('导出失败，请稍后重试')
       })
 }
 
@@ -645,6 +683,16 @@ function downloadTemplate() {
     &.delete-btn {
       color: #f56c6c;
     }
+  }
+}
+.zqy-table-top-left {
+  display: flex;
+  gap: 20px;  // 组之间的间距
+  align-items: center;
+
+  .button-group {
+    display: flex;
+    gap: 8px;  // 组内按钮间距
   }
 }
 </style>
