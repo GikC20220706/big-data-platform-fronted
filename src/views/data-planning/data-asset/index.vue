@@ -173,6 +173,9 @@ onMounted(() => {
 </script>
 
 <style lang="scss">
+.btn-container { 
+  display: flex;
+}
 .data-asset {
   &.zqy-seach-table {
     .zqy-table {
