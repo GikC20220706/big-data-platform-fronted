@@ -31,7 +31,7 @@
         </div>
       </div>
 
-      <div class="zqy-seach">
+      <div class="zqy-seach" style="display: flex; justify-content: space-between; align-items: center;">
         <el-input
             v-model="keyword"
             placeholder="请输入指标名称、指标说明或来源系统"
@@ -40,7 +40,7 @@
             @input="inputEvent"
             @keyup.enter="initData(false)"
         />
-        <el-button type="primary" @click="initData(false)">
+        <el-button type="primary" @click="initData(false)" style="margin-left: 10px;">
           搜索
         </el-button>
       </div>
