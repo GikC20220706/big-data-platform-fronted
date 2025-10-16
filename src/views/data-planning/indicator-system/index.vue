@@ -386,8 +386,11 @@ function showImportModal() {
 
 // 🆕 处理表格选择变化
 function handleSelectionChange(selection: any[]) {
-  selectedRows.value = selection
-  selectedIds.value = selection.map(row => row.id)
+  console.log("handleSelectionChange---")
+  console.log(selection)
+  let selectedIds = []
+  selectedIds = selection.map(row => row.id)
+  console.log(selectedIds)
 }
 
 // 🆕 批量删除（软删除）

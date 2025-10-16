@@ -1,9 +1,10 @@
-<template>
+<template>  
   <vxe-table
     ref="vxeTableRef"
     class="block-table"
     :class="{ 'block-table__empty': !tableConfig.tableData?.length }"
     :row-config="{ isHover: true, drag: true }"
+    :checkbox-config="{ highlight: true, range: true,trigger: 'row',reserve: true }"
     :data="tableConfig.tableData"
     :seq-config="{ seqMethod }"
     :header-cell-config="{height: 44}"
@@ -12,7 +13,10 @@
     :max-height="'100%'"
     :row-drag-config="rowDragConfig"
     @row-dragend="rowDragendEvent"
+    @checkbox-all="selectChangeEvent"
+    @checkbox-change="selectChangeEvent"
   >
+    <vxe-column type="checkbox" width="60" fixed="left"  ></vxe-column>
     <vxe-column
       v-if="tableConfig.seqType"
       :type="tableConfig.seqType"
@@ -126,6 +130,10 @@ const handleSizeChange = (e: number) => {
 }
 const handleCurrentChange = (e: number) => {
   emit('current-change', e)
+}
+const selectChangeEvent = (e: any) => {  
+  const selectedRows = JSON.parse(JSON.stringify(vxeTableRef.value.getCheckboxRecords()));  
+  emit('selection-change', selectedRows)
 }
 
 function seqMethod({ rowIndex }):number {
