@@ -64,7 +64,8 @@ export const httpOption = {
     }
   },
   requestOptions: {
-    urlPrefix: import.meta.env.VITE_VUE_APP_BASE_DOMAIN,
+    // urlPrefix: import.meta.env.VITE_VUE_APP_BASE_DOMAIN,
+    urlPrefix: '',
     showSuccessMessage: (msg: string): void => {
       message.success(msg)
     },

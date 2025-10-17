@@ -20,9 +20,10 @@ export function LoginUserInfo(params: LoginParam): Promise<any> {
 
 // 查询租户信息
 export function QueryTenantList(): Promise<any> {
-  return http.request({
-    method: 'post',
-    url: '/tenant/queryUserTenant'
+  return Promise.resolve({
+    code: 200,
+    data: null,
+    message: '租户功能已禁用'
   })
 }
 

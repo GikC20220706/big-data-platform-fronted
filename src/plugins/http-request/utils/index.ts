@@ -303,7 +303,7 @@ const originOptions = {
     joinParamsToUrl: false,
     formatDate: true,
     apiUrl: '',
-    urlPrefix: '/api',  // 如果后端API有统一前缀
+    urlPrefix: '',  // 如果后端API有统一前缀
     joinPrefix: true,
     joinTime: true,
     ignoreCancelToken: true,
