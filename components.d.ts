@@ -75,6 +75,7 @@ declare module 'vue' {
     ZSvgIcon: typeof import('./src/components/z-svg-icon/index.vue')['default']
   }
   export interface ComponentCustomProperties {
+    vInfiniteScroll: typeof import('element-plus/es')['ElInfiniteScroll']
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }
