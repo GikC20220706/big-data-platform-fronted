@@ -1,119 +1,331 @@
+<!-- src/views/custom-api/test-modal/index.vue -->
+
 <template>
   <BlockModal :model-config="modelConfig">
-    <el-form
-      ref="form"
-      class="custom-api-form"
-      label-position="top"
-      :model="formData"
-      :rules="rules"
+    <el-alert
+        title="API测试工具"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 16px"
     >
-      <el-form-item label="请求路径">
-        <el-input
-          v-model="formData.path"
-          maxlength="1000"
-          placeholder="请输入"
-          :disabled="true"
-        />
-        <span class="copy-url" id="api-path" :data-clipboard-text="formData.path" @click="copyUrlEvent('api-path')">复制</span>
-      </el-form-item>
-      <el-form-item label="请求头" prop="headerConfig" :class="{ 'show-screen__full': reqHeaderFullStatus }">
-        <!-- <el-icon class="modal-full-screen" @click="fullScreenEvent('reqHeaderFullStatus')"><FullScreen v-if="!reqHeaderFullStatus" /><Close v-else /></el-icon>
-        <code-mirror v-model="formData.headerConfig" basic :lang="jsonLang"/> -->
-        <span class="add-btn">
-          <el-icon @click="addNewOption(formData.headerConfig)"><CirclePlus /></el-icon>
-        </span>
-        <div class="form-options__list">
-          <div class="form-options__item" v-for="(element, index) in formData.headerConfig" :key="index">
-            <div class="input-item">
-              <span class="item-label">键</span>
-              <el-input v-model="element.label" placeholder="请输入"></el-input>
+      <template #default>
+        在此配置请求参数并测试API功能,确保接口正常工作
+      </template>
+    </el-alert>
+
+    <el-form
+        ref="formRef"
+        class="test-api-form"
+        label-position="top"
+        :model="formData"
+    >
+      <!-- API基本信息 -->
+      <el-card shadow="never" class="info-card">
+        <template #header>
+          <div class="card-header">
+            <span>API信息</span>
+            <el-tag :type="methodTagType[formData.method] || 'info'" size="small">
+              {{ formData.method }}
+            </el-tag>
+          </div>
+        </template>
+
+        <el-form-item label="请求路径">
+          <el-input v-model="formData.path" disabled>
+            <template #append>
+              <el-button :icon="DocumentCopy" @click="copyUrl">
+                复制
+              </el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="API名称">
+          <el-input v-model="apiInfo.apiName" disabled/>
+        </el-form-item>
+
+        <el-form-item label="数据源">
+          <el-input v-model="apiInfo.dataSourceName" disabled/>
+        </el-form-item>
+      </el-card>
+
+      <!-- 请求配置 -->
+      <el-card shadow="never" class="config-card">
+        <template #header>
+          <div class="card-header">
+            <span>请求配置</span>
+            <el-button
+                type="text"
+                size="small"
+                @click="resetRequestConfig"
+            >
+              重置
+            </el-button>
+          </div>
+        </template>
+
+        <!-- 请求头配置 -->
+        <el-form-item>
+          <template #label>
+            <div class="label-with-action">
+              <span>请求头 (Headers)</span>
+              <el-button
+                  type="primary"
+                  size="small"
+                  text
+                  :icon="Plus"
+                  @click="addHeader"
+              >
+                添加
+              </el-button>
             </div>
-            <div class="input-item">
-              <span class="item-label">值</span>
-              <el-input v-model="element.value" placeholder="请输入"></el-input>
-            </div>
-            <div class="option-btn">
-              <el-icon v-if="formData.headerConfig && formData.headerConfig.length > 1" class="remove" @click="removeItem(index, formData.headerConfig)"><CircleClose /></el-icon>
+          </template>
+          <div class="form-options__list">
+            <div
+                v-for="(header, index) in formData.headerConfig"
+                :key="'header-' + index"
+                class="form-options__item"
+            >
+              <el-input
+                  v-model="header.label"
+                  placeholder="Header键,例如: Authorization"
+                  size="small"
+                  class="input-key"
+              />
+              <span class="separator">:</span>
+              <el-input
+                  v-model="header.value"
+                  placeholder="Header值,例如: Bearer token"
+                  size="small"
+                  class="input-value"
+              />
+              <el-button
+                  v-if="formData.headerConfig.length > 1"
+                  type="danger"
+                  size="small"
+                  text
+                  :icon="Delete"
+                  @click="removeHeader(index)"
+              />
             </div>
           </div>
-        </div>
-      </el-form-item>
-      <el-form-item v-if="formData.method === 'POST'" label="请求体" prop="bodyParams" :class="{ 'show-screen__full': reqBodyFullStatus }">
-        <span class="format-json" @click="formatterJsonEvent(formData, 'bodyParams')">格式化JSON</span>
-        <el-icon class="modal-full-screen" @click="fullScreenEvent('reqBodyFullStatus')"><FullScreen v-if="!reqBodyFullStatus" /><Close v-else /></el-icon>
-        <code-mirror v-model="formData.bodyParams" basic :lang="jsonLang"/>
-      </el-form-item>
-      <el-form-item v-if="formData.method === 'GET'" label="请求体" prop="bodyConfig">
-        <span class="add-btn">
-          <el-icon @click="addNewOption(formData.bodyConfig)"><CirclePlus /></el-icon>
-        </span>
-        <div class="form-options__list">
-          <div class="form-options__item" v-for="(element, index) in formData.bodyConfig" :key="index">
-            <div class="input-item">
-              <span class="item-label">键</span>
-              <el-input v-model="element.label" placeholder="请输入"></el-input>
+        </el-form-item>
+
+        <!-- GET请求参数 -->
+        <el-form-item v-if="formData.method === 'GET'">
+          <template #label>
+            <div class="label-with-action">
+              <span>查询参数 (Query Parameters)</span>
+              <el-button
+                  type="primary"
+                  size="small"
+                  text
+                  :icon="Plus"
+                  @click="addParam"
+              >
+                添加
+              </el-button>
             </div>
-            <div class="input-item">
-              <span class="item-label">值</span>
-              <el-input v-model="element.value" placeholder="请输入"></el-input>
-            </div>
-            <div class="option-btn">
-              <el-icon v-if="formData.bodyConfig && formData.bodyConfig.length > 1" class="remove" @click="removeItem(index, formData.bodyConfig)"><CircleClose /></el-icon>
+          </template>
+          <div class="form-options__list">
+            <div
+                v-for="(param, index) in formData.bodyConfig"
+                :key="'param-' + index"
+                class="form-options__item"
+            >
+              <el-input
+                  v-model="param.label"
+                  placeholder="参数键"
+                  size="small"
+                  class="input-key"
+              />
+              <span class="separator">=</span>
+              <el-input
+                  v-model="param.value"
+                  placeholder="参数值"
+                  size="small"
+                  class="input-value"
+              />
+              <el-button
+                  v-if="formData.bodyConfig.length > 1"
+                  type="danger"
+                  size="small"
+                  text
+                  :icon="Delete"
+                  @click="removeParam(index)"
+              />
             </div>
           </div>
-        </div>
-      </el-form-item>
-      <!-- 响应体 状态码 -->
-      <el-form-item class="resp-http-body" label="响应体" prop="returnConfig" :class="{ 'show-screen__full': respBodyFullStatus }">
-        <span class="format-json" @click="formatterJsonEvent(formData, 'bodyParams')">格式化JSON</span>
-        <span class="resp-http-status" :style="{ color: httpStatus == 500 ? 'red' : '' }">
-          {{ httpStatus }}
-        </span>
-        <el-icon class="modal-full-screen" @click="fullScreenEvent('respBodyFullStatus')">
-          <FullScreen v-if="!respBodyFullStatus" />
-          <Close v-else />
-        </el-icon>
-        <code-mirror ref="responseBodyRef" v-model="formData.returnConfig" :disabled="true" basic :lang="jsonLang"/>
-      </el-form-item>
+        </el-form-item>
+
+        <!-- POST请求体 -->
+        <el-form-item v-if="formData.method === 'POST'">
+          <template #label>
+            <div class="label-with-action">
+              <span>请求体 (Request Body)</span>
+              <el-button
+                  type="primary"
+                  size="small"
+                  text
+                  @click="formatJson"
+              >
+                格式化
+              </el-button>
+            </div>
+          </template>
+          <div class="json-editor-wrapper">
+            <code-mirror
+                v-model="formData.bodyParams"
+                :lang="jsonLang"
+                basic
+                placeholder='{"key": "value"}'
+            />
+          </div>
+        </el-form-item>
+      </el-card>
+
+      <!-- 响应结果 -->
+      <el-card shadow="never" class="response-card">
+        <template #header>
+          <div class="card-header">
+            <span>响应结果</span>
+            <div class="response-status">
+              <span>HTTP状态码:</span>
+              <el-tag
+                  v-if="httpStatus"
+                  :type="httpStatus === 200 ? 'success' : 'danger'"
+                  size="small"
+              >
+                {{ httpStatus }}
+              </el-tag>
+              <el-tag v-else type="info" size="small">-</el-tag>
+
+              <el-divider direction="vertical"/>
+
+              <span>响应时间:</span>
+              <el-tag v-if="responseTime" type="success" size="small">
+                {{ responseTime }}ms
+              </el-tag>
+              <el-tag v-else type="info" size="small">-</el-tag>
+            </div>
+          </div>
+        </template>
+
+        <el-form-item>
+          <div class="response-wrapper">
+            <code-mirror
+                v-model="formData.returnConfig"
+                :lang="jsonLang"
+                :disabled="true"
+                basic
+                placeholder="点击'测试'按钮执行API调用,查看响应结果"
+            />
+          </div>
+        </el-form-item>
+
+        <!-- 响应统计信息 -->
+        <el-form-item v-if="responseStats">
+          <div class="response-stats">
+            <el-descriptions :column="3" size="small" border>
+              <el-descriptions-item label="数据行数">
+                {{ responseStats.totalCount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="执行SQL">
+                <el-tooltip :content="responseStats.executedSql" placement="top">
+                  <span class="sql-preview">
+                    {{ responseStats.executedSql?.substring(0, 50) }}...
+                  </span>
+                </el-tooltip>
+              </el-descriptions-item>
+              <el-descriptions-item label="缓存状态">
+                <el-tag :type="responseStats.cached ? 'success' : 'info'" size="small">
+                  {{ responseStats.cached ? '已缓存' : '未缓存' }}
+                </el-tag>
+              </el-descriptions-item>
+            </el-descriptions>
+          </div>
+        </el-form-item>
+      </el-card>
     </el-form>
+
+    <!-- 自定义底部按钮 -->
+    <template #customLeft>
+      <el-button @click="closeEvent">关闭</el-button>
+      <el-button
+          type="warning"
+          :loading="testLoading"
+          :icon="VideoPlay"
+          @click="testApi"
+      >
+        {{ testLoading ? '测试中...' : '测试' }}
+      </el-button>
+      <el-button
+          v-if="httpStatus === 200"
+          type="success"
+          @click="exportResult"
+      >
+        导出结果
+      </el-button>
+    </template>
   </BlockModal>
 </template>
 
 <script lang="ts" setup>
-import { reactive,  ref, nextTick } from 'vue'
-import BlockModal from '@/components/block-modal/index.vue'
-import { ElMessage, FormInstance, FormRules } from 'element-plus'
-// import CodeMirror from 'vue-codemirror6'
-import {json} from '@codemirror/lang-json'
-import { jsonFormatter } from '@/utils/formatter'
-import { useAuthStore } from '@/store/useAuth'
-import { GetCustomApiDetailData, TestCustomApiData } from '@/services/custom-api.service'
+import {nextTick, reactive, ref} from 'vue'
+import {ElMessage} from 'element-plus'
+import {
+  DocumentCopy,
+  Plus,
+  Delete,
+  VideoPlay
+} from '@element-plus/icons-vue'
 import Clipboard from 'clipboard'
+import {json} from '@codemirror/lang-json'
 
+import BlockModal from '@/components/block-modal/index.vue'
+import {
+  GetCustomApiDetailData,
+  TestCustomApiData
+} from '@/services/custom-api.service'
+import {customApiAdapter} from '@/services/custom-api.adapter'
+import {defaultTestFormData} from '../costom-api.config'
+import type {TestFormData, ApiExecutionResult} from '@/types/custom-api.types'
+import {useAuthStore} from '@/store/useAuth'
+import {jsonFormatter} from "@/utils/formatter"
+
+// 定义 Option 接口
 interface Option {
-    label: string
-    value: string
+  label: string
+  value: string
 }
+
+// ==================== 响应式数据 ====================
 
 const authStore = useAuthStore()
 
-const form = ref<FormInstance>()
+const formRef = ref()
 const jsonLang = ref<any>(json())
-const responseBodyRef = ref()
 
-const reqHeaderFullStatus = ref(false)
-const reqBodyFullStatus = ref(false)
-const respBodyFullStatus = ref(false)
+const testLoading = ref(false)
 const httpStatus = ref<number | null>(null)
+const responseTime = ref<number | null>(null)
+const responseStats = ref<any>(null)
+
+const apiInfo = reactive({
+  apiName: '',
+  dataSourceName: '',
+  description: ''
+})
 
 const modelConfig = reactive({
-  title: '测试接口',
+  title: 'API测试',
   visible: false,
-  width: '60%',
+  width: '900px',
   okConfig: {
     title: '确定',
-    ok: okEvent,
-    disabled: false,
+    ok: () => {
+    },
+    disabled: true,
     loading: false
   },
   cancelConfig: {
@@ -125,6 +337,7 @@ const modelConfig = reactive({
   zIndex: 1100,
   closeOnClickModal: false
 })
+
 const formData = reactive<{
   id: string
   path: string
@@ -135,272 +348,425 @@ const formData = reactive<{
   returnConfig: any
 }>({
   id: '',
-  path: '',              // 自定义访问路径
+  path: '',
   method: '',
-  headerConfig: [],   // 请求头
-  bodyConfig: [],     // 请求体
+  headerConfig: [],
+  bodyConfig: [],
   bodyParams: null,
-  returnConfig: null    // 返回体
-})
-const rules = reactive<FormRules>({
-  // url: [{ required: true, message: '请输入自定义访问路径', trigger: [ 'blur', 'change' ]}],
-  // headerConfig: [{ required: true, message: '请输入请求头设置', trigger: [ 'blur', 'change' ]}],
-  // bodyConfig: [{ required: true, message: '请输入请求体设置', trigger: [ 'blur', 'change' ]}]
+  returnConfig: null
 })
 
-function showModal(data: any): void {
+const methodTagType: Record<string, string> = {
+  GET: 'success',
+  POST: 'warning',
+  PUT: 'primary',
+  DELETE: 'danger'
+}
+
+// ==================== 对外方法 ====================
+
+/**
+ * 显示测试弹窗
+ */
+async function showModal(apiId: number): void {
   modelConfig.visible = true
-  formData.id = data.id
-  getApiDetailData(data.id)
+  formData.id = apiId.toString()
+  getApiDetailData(apiId)
   httpStatus.value = null
-  if (data.path.slice(0,1) !== '/') {
-    data.path = '/' + data.path
-  }
-  formData.path = `${location.origin}/${authStore.tenantId}/api${data.path}`
-  formData.method = data.apiType
+  responseTime.value = null
+  responseStats.value = null
   formData.headerConfig = [{label: '', value: ''}]
   formData.bodyConfig = [{label: '', value: ''}]
   formData.bodyParams = null
   formData.returnConfig = null
   nextTick(() => {
-    form.value?.resetFields()
+    formRef.value?.resetFields()  // 改为 formRef
   })
 }
 
-function getApiDetailData(id: string) {
-  GetCustomApiDetailData({
-    id: id
-  }).then((res: any) => {
-    if (res.data.reqHeader) {
-      formData.headerConfig = res.data.reqHeader.map((item: any) => {
-        item.value = ''
-        return {
-          ...item
-        }
-      })
-    }
-    if (res.data.apiType === 'POST') {
-      formData.bodyParams = jsonFormatter(JSON.parse(res.data.reqJsonTemp))
-    } else {
-      formData.bodyConfig = res.data.reqGetTemp
-    }
-  }).catch(() => {
-  })
-}
+async function getApiDetailData(apiId: number) {
+  GetCustomApiDetailData(apiId).then((res: any) => {
+    if (res.data) {
+      const api = res.data
 
-function okEvent() {
-  form.value?.validate((valid) => {
-    if (valid) {
-      const headerParams: any = {}
-      formData.headerConfig.forEach(item => {
-        headerParams[item.label] = item.value
-      })
-      try {
-        let bodyParams: any = {}
-        if (formData.method === 'GET') {
-          formData.bodyConfig.forEach(item => {
-            bodyParams[item.label] = item.value
-          })
-        } else {
-          bodyParams = JSON.parse(formData.bodyParams)
-        }
-        modelConfig.okConfig.loading = true
-        TestCustomApiData({
-          id: formData.id,
-          headerParams: headerParams,
-          requestBody: bodyParams
-        }).then((res: any) => {
-          ElMessage.success(res.msg)
-          modelConfig.okConfig.loading = false
-          httpStatus.value = res.data.httpStatus
-          if (res.data.httpStatus === 200) {
-            formData.returnConfig = jsonFormatter(JSON.stringify(res.data.body))
-          } else {
-            formData.returnConfig = res.data.msg
-          }
-        }).catch(() => {
-          modelConfig.okConfig.loading = false
-        })
-      } catch (error) {
-        console.warn('请求体输入有误', error)
-        ElMessage.warning('请求体格式输入有误')
+      // 设置API信息到 apiInfo 对象
+      apiInfo.apiName = api.apiName || api.api_name || ''
+      apiInfo.dataSourceName = api.dataSource?.name || api.data_source?.name || '-'
+      apiInfo.description = api.description || ''
+
+      // 设置API路径
+      const apiPath = api.apiPath || api.api_path || ''
+      formData.path = `${location.origin}/api${apiPath}`
+
+      // 设置请求方法
+      formData.method = api.httpMethod || api.http_method || 'GET'
+
+      // 设置请求头
+      if (api.parameters && api.parameters.length > 0) {
+        formData.headerConfig = [{label: 'Content-Type', value: 'application/json'}]
       }
-    } else {
-      ElMessage.warning('请将表单输入完整')
+
+      // 设置请求参数
+      if (formData.method === 'POST') {
+        const bodyObj: any = {}
+        api.parameters?.forEach((param: any) => {
+          const paramName = param.paramName || param.param_name
+          const defaultValue = param.defaultValue || param.default_value || ''
+          bodyObj[paramName] = defaultValue
+        })
+        formData.bodyParams = jsonFormatter(JSON.stringify(bodyObj))
+      } else {
+        formData.bodyConfig = api.parameters?.map((param: any) => ({
+          label: param.paramName || param.param_name,
+          value: param.defaultValue || param.default_value || ''
+        })) || [{label: '', value: ''}]
+      }
     }
+  }).catch((error) => {
+    console.error('获取API详情失败:', error)
+    ElMessage.error('加载API信息失败')
   })
 }
 
+defineExpose({showModal})
+
+// ==================== 数据加载 ====================
+
+/**
+ * 加载API详情
+ */
+async function loadApiDetail(apiId: number) {
+  try {
+    const res = await GetCustomApiDetailData(apiId)
+    if (res.data) {
+      const api = res.data
+
+      // 设置API信息
+      apiInfo.apiName = api.apiName
+      apiInfo.dataSourceName = api.dataSource?.name || '-'
+      apiInfo.description = api.description || ''
+
+      // 设置测试表单
+      formData.id = api.id
+      formData.method = api.httpMethod
+      formData.path = `${location.origin}/${authStore.tenantId}${api.apiPath}`
+
+      // 初始化请求头
+      formData.headerConfig = [
+        {label: 'Content-Type', value: 'application/json'}
+      ]
+
+      // 根据参数初始化请求数据
+      if (api.httpMethod === 'GET') {
+        formData.bodyConfig = api.parameters.map(p => ({
+          label: p.paramName,
+          value: p.defaultValue || ''
+        }))
+        if (formData.bodyConfig.length === 0) {
+          formData.bodyConfig = [{label: '', value: ''}]
+        }
+      } else if (api.httpMethod === 'POST') {
+        const bodyObj: Record<string, any> = {}
+        api.parameters.forEach(p => {
+          bodyObj[p.paramName] = p.defaultValue || ''
+        })
+        formData.bodyParams = JSON.stringify(bodyObj, null, 2)
+      }
+
+      formData.returnConfig = ''
+    }
+  } catch (error) {
+    console.error('加载API详情失败:', error)
+    ElMessage.error('加载API详情失败')
+  }
+}
+
+// ==================== 测试相关 ====================
+
+/**
+ * 测试API
+ */
+async function testApi() {
+  // 验证POST请求的JSON格式
+  if (formData.method === 'POST' && formData.bodyParams) {
+    try {
+      JSON.parse(formData.bodyParams)
+    } catch (e) {
+      ElMessage.warning('请求体JSON格式错误,请检查')
+      return
+    }
+  }
+
+  testLoading.value = true
+  httpStatus.value = null
+  responseTime.value = null
+  responseStats.value = null
+
+  const startTime = Date.now()
+
+  try {
+    const testRequest = customApiAdapter.convertTestFormToRequest(formData)
+    const res = await TestCustomApiData(testRequest)
+
+    responseTime.value = Date.now() - startTime
+    httpStatus.value = res.data?.httpStatus || 200
+
+    if (res.data) {
+      // 设置响应内容
+      if (res.data.body) {
+        formData.returnConfig = JSON.stringify(res.data.body, null, 2)
+      } else {
+        formData.returnConfig = res.data.msg || '测试完成'
+      }
+
+      // 设置响应统计
+      responseStats.value = {
+        totalCount: res.data.totalCount || 0,
+        executedSql: res.data.executedSql || '-',
+        cached: res.data.cached || false,
+        responseTimeMs: res.data.responseTimeMs || responseTime.value
+      }
+
+      ElMessage.success('测试成功')
+    }
+  } catch (error: any) {
+    console.error('测试失败:', error)
+    responseTime.value = Date.now() - startTime
+    httpStatus.value = error.status || 500
+
+    formData.returnConfig = JSON.stringify(
+        {
+          success: false,
+          error: error.message || '测试失败',
+          details: error.response?.data || error.data
+        },
+        null,
+        2
+    )
+
+    ElMessage.error('测试失败: ' + (error.message || '未知错误'))
+  } finally {
+    testLoading.value = false
+  }
+}
+
+/**
+ * 导出结果
+ */
+function exportResult() {
+  try {
+    const dataStr = formData.returnConfig
+    const dataBlob = new Blob([dataStr], {type: 'application/json'})
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `api-test-result-${Date.now()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
+  }
+}
+
+// ==================== 表单操作 ====================
+
+/**
+ * 复制URL
+ */
+function copyUrl() {
+  const clipboard = new Clipboard('.el-button', {
+    text: () => formData.path
+  })
+
+  clipboard.on('success', () => {
+    ElMessage.success('URL已复制到剪贴板')
+    clipboard.destroy()
+  })
+
+  clipboard.on('error', () => {
+    ElMessage.error('复制失败')
+    clipboard.destroy()
+  })
+}
+
+/**
+ * 格式化JSON
+ */
+function formatJson() {
+  try {
+    if (formData.bodyParams) {
+      const jsonObj = JSON.parse(formData.bodyParams)
+      formData.bodyParams = JSON.stringify(jsonObj, null, 2)
+      ElMessage.success('格式化成功')
+    }
+  } catch (e) {
+    ElMessage.warning('JSON格式错误,无法格式化')
+  }
+}
+
+/**
+ * 重置请求配置
+ */
+function resetRequestConfig() {
+  formData.headerConfig = [
+    {label: 'Content-Type', value: 'application/json'}
+  ]
+  if (formData.method === 'GET') {
+    formData.bodyConfig = [{label: '', value: ''}]
+  } else {
+    formData.bodyParams = '{}'
+  }
+  httpStatus.value = null
+  responseTime.value = null
+  responseStats.value = null
+  formData.returnConfig = ''
+  ElMessage.success('已重置')
+}
+
+/**
+ * 添加请求头
+ */
+function addHeader() {
+  formData.headerConfig.push({label: '', value: ''})
+}
+
+/**
+ * 删除请求头
+ */
+function removeHeader(index: number) {
+  formData.headerConfig.splice(index, 1)
+}
+
+/**
+ * 添加参数
+ */
+function addParam() {
+  formData.bodyConfig.push({label: '', value: ''})
+}
+
+/**
+ * 删除参数
+ */
+function removeParam(index: number) {
+  formData.bodyConfig.splice(index, 1)
+}
+
+/**
+ * 重置表单
+ */
+function resetForm() {
+  Object.assign(formData, {...defaultTestFormData})
+  Object.assign(apiInfo, {
+    apiName: '',
+    dataSourceName: '',
+    description: ''
+  })
+  httpStatus.value = null
+  responseTime.value = null
+  responseStats.value = null
+}
+
+/**
+ * 关闭弹窗
+ */
 function closeEvent() {
   modelConfig.visible = false
+  resetForm()
 }
-function formatterJsonEvent(formData: any, key: string) {
-  try {
-    formData[key] = jsonFormatter(formData[key])
-  } catch (error) {
-    console.error('请检查输入的JSON格式是否正确', error)
-    ElMessage.error('请检查输入的JSON格式是否正确')
-  }
-}
-function fullScreenEvent(type: string) {
-  if (type === 'reqHeaderFullStatus') {
-    reqHeaderFullStatus.value = !reqHeaderFullStatus.value
-  } else if (type === 'reqBodyFullStatus') {
-    reqBodyFullStatus.value = !reqBodyFullStatus.value
-  } else {
-    respBodyFullStatus.value = !respBodyFullStatus.value
-  }
-}
-
-function addNewOption(data: any) {
-  data.push({
-    label: '',
-    value: ''
-  })
-}
-function removeItem(index: number, data: any) {
-  data.splice(index, 1)
-}
-
-function copyUrlEvent(id: string) {
-    let clipboard = new Clipboard('#' + id)
-    clipboard.on('success', () => {
-        ElMessage.success('复制成功')
-        clipboard.destroy()
-    })
-}
-
-
-defineExpose({
-  showModal
-})
 </script>
 
-<style lang="scss">
-.custom-api-form {
-  box-sizing: border-box;
-  padding: 12px 20px 0 20px;
-  width: 100%;
+<style lang="scss" scoped>
+.test-api-form {
+  padding: 0;
 
-  .api-item {
-    .item-title {
-      font-size: 14px;
-      padding-bottom: 12px;
-      margin-bottom: 12px;
-      box-sizing: border-box;
-      border-bottom: 1px solid #ebeef5;
-      font-weight: bolder;
-      color: getCssVar('color', 'primary');
+  .info-card,
+  .config-card,
+  .response-card {
+    margin-bottom: 16px;
+
+    &:last-child {
+      margin-bottom: 0;
     }
   }
-  .el-form-item {
-    .format-json {
-      position: absolute;
-      top: -34px;
-      right: 20px;
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+  }
+
+  .label-with-action {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .form-options__list {
+    width: 100%;
+
+    .form-options__item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .input-key {
+        flex: 0 0 35%;
+      }
+
+      .separator {
+        flex: 0 0 20px;
+        text-align: center;
+        color: var(--el-text-color-secondary);
+        font-weight: 600;
+      }
+
+      .input-value {
+        flex: 1;
+      }
+    }
+  }
+
+  .json-editor-wrapper {
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    min-height: 200px;
+    max-height: 400px;
+    overflow: auto;
+  }
+
+  .response-wrapper {
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    min-height: 300px;
+    max-height: 500px;
+    overflow: auto;
+  }
+
+  .response-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: normal;
+
+    span {
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  .response-stats {
+    margin-top: 12px;
+
+    .sql-preview {
+      font-family: monospace;
       font-size: 12px;
-      color: getCssVar('color', 'primary');
+      color: var(--el-color-primary);
       cursor: pointer;
-      &:hover {
-        text-decoration: underline;
-      }
-    }
-    &.show-screen__full {
-      position: fixed;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      background-color: #ffffff;
-      padding: 12px 20px;
-      box-sizing: border-box;
-      transition: all 0.15s linear;
-      z-index: 10;
-      .el-form-item__content {
-        align-items: flex-start;
-        height: 100%;
-        .vue-codemirror {
-          height: calc(100% - 36px);
-        }
-      }
-    }
-    .el-form-item__content {
-      position: relative;
-      flex-wrap: nowrap;
-      justify-content: space-between;
-
-      .copy-url {
-          min-width: 24px;
-          font-size: 12px;
-          margin-left: 10px;
-          color: getCssVar('color', 'primary');
-          cursor: pointer;
-          &:hover {
-              text-decoration: underline;
-          }
-
-      }
-      .modal-full-screen {
-        position: absolute;
-        top: -26px;
-        right: 0;
-        cursor: pointer;
-        &:hover {
-          color: getCssVar('color', 'primary');;
-        }
-      }
-      .vue-codemirror {
-        height: 130px;
-        width: 100%;
-
-        .cm-editor {
-          height: 100%;
-          outline: none;
-          border: 1px solid #dcdfe6;
-        }
-
-        .cm-gutters {
-          font-size: 12px;
-          font-family: v-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        }
-
-        .cm-content {
-          font-size: 12px;
-          font-family: v-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        }
-
-        .cm-tooltip-autocomplete {
-          ul {
-            li {
-              height: 40px;
-              display: flex;
-              align-items: center;
-              font-size: 12px;
-              background-color: #ffffff;
-              font-family: v-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            }
-
-            li[aria-selected] {
-              background: #409EFF;
-            }
-
-            .cm-completionIcon {
-              margin-right: -4px;
-              opacity: 0;
-            }
-          }
-        }
-      }
-    }
-  }
-  .resp-http-body {
-    position: relative;
-    .resp-http-status {
-      position: absolute;
-      top: -35px;
-      left: 62px;
-      z-index: 10;
-      font-size: 12px;
     }
   }
 }
