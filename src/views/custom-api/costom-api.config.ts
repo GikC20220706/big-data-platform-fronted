@@ -301,9 +301,21 @@ export const defaultFormData = {
     path: '',
     remark: '',
     dataSourceId: null,
-    clusterId: null,
     apiType: 'GET',
-    sqlTemp: 'SELECT * FROM table_name WHERE 1=1',
+    sqlTemp: '',
+    responseFormat: 'json',
+    cacheTtl: 300,
+    rateLimit: 100,
+    parameters: [] as Array<{
+        paramName: string
+        paramType: string
+        isRequired: boolean
+        defaultValue: string
+        description: string
+        validationRule: any
+    }>,
+    // 保留旧字段以兼容
+    clusterId: null,
     resBody: '',
     tokenType: 'CUSTOM',
     reqHeader: [{ label: '', value: '' }],
@@ -400,4 +412,59 @@ export const stepConfig = [
         title: '接口测试',
         description: '测试API功能'
     }
+]
+
+// ==================== 新增API参数配置的默认数据 ====================
+
+/**
+ * 默认API参数
+ */
+export const defaultApiParameter = {
+    paramName: '',
+    paramType: 'string',
+    isRequired: false,
+    defaultValue: '',
+    description: '',
+    validationRule: null
+}
+
+/**
+ * 新的默认表单数据(适配后端CreateAPIRequest)
+ */
+export const defaultApiFormData = {
+    id: undefined,
+    name: '',
+    path: '',
+    remark: '',
+    dataSourceId: null,
+    apiType: 'GET',
+    sqlTemp: '',
+    responseFormat: 'json',
+    cacheTtl: 300,
+    rateLimit: 100,
+    parameters: [] as Array<{
+        paramName: string
+        paramType: string
+        isRequired: boolean
+        defaultValue: string
+        description: string
+        validationRule: any
+    }>
+}
+
+// ==================== SQL模板示例 ====================
+
+export const sqlTemplateExamples = {
+    simple: 'SELECT * FROM users WHERE id = {{ user_id }}',
+    withMultipleParams: 'SELECT * FROM orders WHERE user_id = {{ user_id }} AND status = {{ status }}',
+    withDateRange: 'SELECT * FROM logs WHERE created_at BETWEEN {{ start_date }} AND {{ end_date }}',
+    withPagination: 'SELECT * FROM products WHERE category = {{ category }} LIMIT {{ limit }} OFFSET {{ offset }}'
+}
+
+export const sqlTemplateHints = [
+    '1. SQL必须以SELECT开头',
+    '2. 使用 {{ param_name }} 定义参数',
+    '3. 参数名只能包含字母、数字、下划线',
+    '4. 支持Jinja2模板语法',
+    '5. 示例: SELECT * FROM users WHERE id = {{ user_id }}'
 ]
