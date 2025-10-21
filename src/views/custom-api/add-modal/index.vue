@@ -79,7 +79,7 @@
             v-model="formData.dataSourceId"
             placeholder="请选择数据源"
             filterable
-            :disabled="isEdit"
+            :disabled="false"
             @visible-change="loadDataSourceList"
         >
           <el-option
@@ -370,7 +370,12 @@
           style="margin-bottom: 16px"
       >
         <template #default>
-          API已保存成功! API ID: <strong>{{ formData.id }}</strong>,您可以配置测试参数进行功能测试
+          <div>
+            <p>API已保存成功! API ID: <strong>{{ formData.id }}</strong></p>
+            <p style="margin-top: 8px; font-size: 13px; color: #909399">
+              提示：支持分页查询，可添加 <code>page</code> 和 <code>page_size</code> 参数实现分页
+            </p>
+          </div>
         </template>
       </el-alert>
 
@@ -714,11 +719,13 @@ defineExpose({showModal})
 async function loadApiDetail(apiId: number) {
   try {
     const res = await GetCustomApiDetailData(apiId)
+    console.log('API详情响应:', res) // 添加调试日志
     if (res.data) {
       const api = res.data
+      console.log('API数据:', api)
 
       // 设置基本信息
-      formData.id = api.id
+      formData.id = apiId
       formData.name = api.apiName || api.api_name
       formData.path = api.apiPath || api.api_path
       formData.remark = api.description
@@ -728,6 +735,7 @@ async function loadApiDetail(apiId: number) {
       formData.responseFormat = api.responseFormat || api.response_format || 'json'
       formData.cacheTtl = api.cacheTtl || api.cache_ttl || 300
       formData.rateLimit = api.rateLimit || api.rate_limit || 100
+      console.log('赋值后的 formData.id:', formData.id)
 
       // 设置参数列表
       if (api.parameters && api.parameters.length > 0) {
@@ -818,39 +826,54 @@ async function saveAndNext() {
     saveLoading.value = true
 
     // 构建请求数据
-    const apiRequest = {
-      apiName: formData.name,
-      apiPath: formData.path,
-      description: formData.remark || null,
-      dataSourceId: formData.dataSourceId,
-      sqlTemplate: formData.sqlTemp,
-      httpMethod: formData.apiType,
-      responseFormat: formData.responseFormat,
-      cacheTtl: formData.cacheTtl,
-      rateLimit: formData.rateLimit,
-      parameters: formData.parameters.map(p => ({
-        paramName: p.paramName,
-        paramType: p.paramType,
-        isRequired: p.isRequired,
-        defaultValue: p.defaultValue || null,
-        description: p.description || null,
-        validationRule: p.validationRule || null
-      }))
-    }
-
-    let res: any
     if (formData.id) {
-      // 更新API
-      res = await UpdateCustomApiData(formData.id, apiRequest)
+      // 🔧 编辑模式：只发送允许更新的字段
+      const apiRequest = {
+        description: formData.remark || null,
+        sqlTemplate: formData.sqlTemp,
+        responseFormat: formData.responseFormat,
+        cacheTtl: formData.cacheTtl,
+        rateLimit: formData.rateLimit,
+        parameters: formData.parameters.map(p => ({
+          paramName: p.paramName,
+          paramType: p.paramType,
+          isRequired: p.isRequired,
+          defaultValue: p.defaultValue || null,
+          description: p.description || null,
+          validationRule: p.validationRule || null
+        }))
+      }
+
+      const res = await UpdateCustomApiData(formData.id, apiRequest)
+      ElMessage.success(res.message || res.msg || '更新成功')
     } else {
-      // 创建API
-      res = await CreateCustomApiData(apiRequest)
+      // 🔧 新增模式：发送完整字段
+      const apiRequest = {
+        apiName: formData.name,
+        apiPath: formData.path,
+        description: formData.remark || null,
+        dataSourceId: formData.dataSourceId,
+        sqlTemplate: formData.sqlTemp,
+        httpMethod: formData.apiType,
+        responseFormat: formData.responseFormat,
+        cacheTtl: formData.cacheTtl,
+        rateLimit: formData.rateLimit,
+        parameters: formData.parameters.map(p => ({
+          paramName: p.paramName,
+          paramType: p.paramType,
+          isRequired: p.isRequired,
+          defaultValue: p.defaultValue || null,
+          description: p.description || null,
+          validationRule: p.validationRule || null
+        }))
+      }
+
+      const res = await CreateCustomApiData(apiRequest)
       if (res.data && res.data.api_id) {
         formData.id = res.data.api_id
       }
+      ElMessage.success(res.message || res.msg || '创建成功')
     }
-
-    ElMessage.success(res.message || res.msg || '保存成功')
 
     // 准备测试数据
     prepareTestData()
