@@ -406,7 +406,7 @@ function deleteData(row: ApiTableRow) {
       }
   )
       .then(() => {
-        DeleteCustomApiData({id: row.id})
+        DeleteCustomApiData(row.id)
             .then((res: any) => {
               ElMessage.success(res.msg || '删除成功')
               // 如果当前页没有数据了，返回上一页
