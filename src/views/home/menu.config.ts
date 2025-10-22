@@ -239,6 +239,13 @@ export const menuListData: Array<Menu> = [
         childPage: []
       },
       {
+        code: 'api-user',
+        name: 'API用户管理',
+        icon: 'User',
+        authType: [ 'ROLE_TENANT_MEMBER', 'ROLE_TENANT_ADMIN' ],
+        childPage: []
+      },
+      {
         code: 'custom-form',
         name: '分享表单',
         icon: 'Files',

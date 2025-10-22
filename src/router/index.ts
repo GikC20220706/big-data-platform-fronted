@@ -47,6 +47,15 @@ const routes: Array<RouteRecordRaw> = [
     path: '/dashboard/:shareParam',
     name: 'share-report',
     component: ShareReport
+  },
+  {
+    path: '/api-user',
+    name: 'ApiUser',
+    component: () => import('@/views/api-user/index.vue'),
+    meta: {
+      title: 'API用户管理',
+      icon: 'User'
+    }
   }
   // {
   //   path: '/about',

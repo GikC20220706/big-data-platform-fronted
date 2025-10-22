@@ -106,6 +106,61 @@
             show-word-limit
         />
       </el-form-item>
+      <!-- 🔧 添加访问权限配置 -->
+      <el-divider content-position="left">
+        <span style="font-size: 16px; font-weight: 600">访问权限</span>
+      </el-divider>
+
+      <el-form-item label="访问级别" prop="accessLevel">
+        <el-radio-group v-model="formData.accessLevel" @change="handleAccessLevelChange">
+          <el-radio label="public">
+            <span style="font-weight: 600">公开访问</span>
+            <div style="font-size: 12px; color: #909399; margin-left: 24px">
+              任何人都可以访问，无需API密钥
+            </div>
+          </el-radio>
+          <el-radio label="authenticated">
+            <span style="font-weight: 600">需要认证</span>
+            <div style="font-size: 12px; color: #909399; margin-left: 24px">
+              需要有效的API密钥，任何认证用户都可以访问
+            </div>
+          </el-radio>
+          <el-radio label="restricted">
+            <span style="font-weight: 600">限定用户</span>
+            <div style="font-size: 12px; color: #909399; margin-left: 24px">
+              只有指定的用户可以访问
+            </div>
+          </el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <!-- 如果选择了"限定用户"，显示用户选择器 -->
+      <el-form-item
+          v-if="formData.accessLevel === 'restricted'"
+          label="允许访问的用户"
+          prop="allowedUserIds"
+      >
+        <el-select
+            v-model="formData.allowedUserIds"
+            multiple
+            filterable
+            placeholder="请选择允许访问的用户"
+            style="width: 100%"
+            @visible-change="loadApiUserList"
+        >
+          <el-option
+              v-for="user in apiUserList"
+              :key="user.id"
+              :label="`${user.display_name} (@${user.username})`"
+              :value="user.id"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>{{ user.display_name }}</span>
+              <span style="font-size: 12px; color: #909399">@{{ user.username }}</span>
+            </div>
+          </el-option>
+        </el-select>
+      </el-form-item>
     </el-form>
 
     <!-- 第二步: SQL配置 + 参数配置 -->
@@ -642,6 +697,7 @@ import {
   sqlTemplateHints
 } from '../costom-api.config'
 import {useAuthStore} from '@/store/useAuth'
+import { GetAPIUserList, GrantAPIPermissions } from '@/services/api-user.service'
 
 // ==================== 响应式数据 ====================
 
@@ -683,8 +739,13 @@ const modelConfig = reactive({
   closeOnClickModal: false
 })
 
-const formData = reactive({...defaultApiFormData})
+const formData = reactive({
+  ...defaultApiFormData,
+  accessLevel: 'authenticated',  // 🔧 添加访问级别
+  allowedUserIds: [] as number[]  // 🔧 添加允许的用户ID列表
+})
 const formDataTest = reactive({...defaultTestFormData})
+const apiUserList = ref<Array<{ id: number; username: string; display_name: string }>>([])
 
 // ==================== 对外方法 ====================
 
@@ -735,6 +796,10 @@ async function loadApiDetail(apiId: number) {
       formData.responseFormat = api.responseFormat || api.response_format || 'json'
       formData.cacheTtl = api.cacheTtl || api.cache_ttl || 300
       formData.rateLimit = api.rateLimit || api.rate_limit || 100
+      formData.accessLevel = api.accessLevel || api.access_level || 'authenticated'
+      if (formData.accessLevel === 'restricted') {
+        await loadApiPermissions(apiId)
+      }
       console.log('赋值后的 formData.id:', formData.id)
 
       // 设置参数列表
@@ -841,10 +906,17 @@ async function saveAndNext() {
           defaultValue: p.defaultValue || null,
           description: p.description || null,
           validationRule: p.validationRule || null
-        }))
+        })),
+        accessLevel: formData.accessLevel
       }
 
       const res = await UpdateCustomApiData(formData.id, apiRequest)
+      if (formData.accessLevel === 'restricted' && formData.allowedUserIds.length > 0) {
+        await GrantAPIPermissions({
+          api_id: formData.id,
+          user_ids: formData.allowedUserIds
+        })
+      }
       ElMessage.success(res.message || res.msg || '更新成功')
     } else {
       // 🔧 新增模式：发送完整字段
@@ -858,6 +930,7 @@ async function saveAndNext() {
         responseFormat: formData.responseFormat,
         cacheTtl: formData.cacheTtl,
         rateLimit: formData.rateLimit,
+        accessLevel: formData.accessLevel,
         parameters: formData.parameters.map(p => ({
           paramName: p.paramName,
           paramType: p.paramType,
@@ -871,6 +944,12 @@ async function saveAndNext() {
       const res = await CreateCustomApiData(apiRequest)
       if (res.data && res.data.api_id) {
         formData.id = res.data.api_id
+        if (formData.accessLevel === 'restricted' && formData.allowedUserIds.length > 0) {
+          await GrantAPIPermissions({
+            api_id: formData.id,
+            user_ids: formData.allowedUserIds
+          })
+        }
       }
       ElMessage.success(res.message || res.msg || '创建成功')
     }
@@ -1205,7 +1284,9 @@ function removeTestParam(index: number) {
  * 重置表单
  */
 function resetForm() {
-  Object.assign(formData, {...defaultApiFormData})
+  Object.assign(formData, {...defaultApiFormData,
+    accessLevel: 'authenticated',  // 🔧 添加
+    allowedUserIds: [] })
   Object.assign(formDataTest, {...defaultTestFormData})
   formRef.value?.resetFields()
   formTestRef.value?.resetFields()
@@ -1222,6 +1303,49 @@ function closeEvent() {
   setTimeout(() => {
     resetForm()
   }, 300)
+}
+
+// 添加加载API用户列表的方法
+async function loadApiUserList(visible: boolean) {
+  if (!visible || apiUserList.value.length > 0) return
+
+  try {
+    const res = await GetAPIUserList({
+      skip: 0,
+      limit: 100,
+      is_active: true
+    })
+
+    if (res.data && res.data.users) {
+      apiUserList.value = res.data.users.map((item: any) => ({
+        id: item.id,
+        username: item.username,
+        display_name: item.display_name
+      }))
+    }
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
+  }
+}
+
+// 添加访问级别变化处理
+function handleAccessLevelChange(value: string) {
+  if (value !== 'restricted') {
+    formData.allowedUserIds = []
+  }
+}
+
+async function loadApiPermissions(apiId: number) {
+  try {
+    const { GetAPIPermissions } = await import('@/services/api-user.service')
+    const res = await GetAPIPermissions(apiId)
+
+    if (res.data && res.data.permissions) {
+      formData.allowedUserIds = res.data.permissions.map((p: any) => p.user_id)
+    }
+  } catch (error) {
+    console.error('加载权限失败:', error)
+  }
 }
 </script>
 

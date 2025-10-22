@@ -290,6 +290,21 @@ export const formRules = {
     ],
     remark: [
         { max: 1000, message: '描述长度不能超过 1000 个字符', trigger: 'blur' }
+    ],
+    accessLevel: [
+        { required: true, message: '请选择访问级别', trigger: 'change' }
+    ],
+    allowedUserIds: [
+        {
+            validator: (rule: any, value: any[], callback: any) => {
+                if (formData.accessLevel === 'restricted' && (!value || value.length === 0)) {
+                    callback(new Error('请至少选择一个用户'))
+                } else {
+                    callback()
+                }
+            },
+            trigger: 'change'
+        }
     ]
 }
 
