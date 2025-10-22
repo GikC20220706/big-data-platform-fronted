@@ -48,7 +48,7 @@ export function useRouterMenu(menuListData: Menu[]) {
     // })
   }
 
-  let isCollapse = ref(true)
+  let isCollapse = ref(false)
 
   let handleSelect = (index: Menu["code"]) => {
     router.push({
@@ -69,7 +69,7 @@ export function useRouterMenu(menuListData: Menu[]) {
       <div 
         class="zqy-home__menu-wrap" 
         onMouseenter={() => { isCollapse.value = false }} 
-        onMouseleave={() => { isCollapse.value = true}}
+        onMouseleave={() => { isCollapse.value = false}}
       >
         <el-menu
           class="zqy-home__menu"

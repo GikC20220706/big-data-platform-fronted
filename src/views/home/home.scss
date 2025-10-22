@@ -7,7 +7,7 @@
   &.is-collapse {
 
     .zqy-home__sidebar {
-      width: 80px;
+      width: 220px;
       z-index: 999;
       .zqy-home__nav {
         display: flex;
@@ -17,11 +17,11 @@
     }
 
     .zqy-home__main {
-      padding-left: 80px;
+      padding-left: 220px;
     }
 
     .zqy-home__menu-footer {
-      // width: 80px;
+      // width: 220px;
       padding-left: 24px;
       // height: 100px;
       // flex-direction: column;
@@ -54,7 +54,7 @@
   .zqy-home__main {
     width: 100vw;
     background-color: getCssVar('color', 'white');
-    padding-left: 80px;
+    padding-left: 220px;
     box-sizing: border-box;
     transition: all getCssVar('transition-duration') ease-in-out;
   }
