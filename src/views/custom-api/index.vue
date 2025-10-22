@@ -330,7 +330,7 @@ function viewDetail(row: ApiTableRow) {
           ElMessageBox.alert(detailHtml, 'API详情', {
             dangerouslyUseHTMLString: true,
             confirmButtonText: '关闭',
-            customClass: 'api-detail-dialog'
+            customClass: 'api-detail-dialog  custom_width'
           })
         }
       })
@@ -447,6 +447,12 @@ function handleCommand(command: string, row: ApiTableRow) {
   }
 }
 </script>
+<style lang="scss">
+.custom_width {
+  width: 800px !important;
+  max-width: 90vw !important; 
+}
+</style>
 
 <style lang="scss" scoped>
 .custom-api-page {
@@ -511,11 +517,11 @@ function handleCommand(command: string, row: ApiTableRow) {
         }
       }
     }
-
+    
     .api-detail-dialog {
       width: 800px !important;
       max-width: 90vw;
-
+     
       .el-message-box__message {
         padding-right: 20px;
       }
@@ -535,4 +541,5 @@ function handleCommand(command: string, row: ApiTableRow) {
     }
   }
 }
+
 </style>

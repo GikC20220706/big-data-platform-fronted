@@ -230,7 +230,7 @@
               :lang="sqlLang"
               basic
               placeholder="请输入SQL查询语句&#10;例如: SELECT * FROM users WHERE id = {{ user_id }}"
-              style="min-height: 200px"
+              style="width: 100%; min-height: 200px"
           />
         </div>
       </el-form-item>
@@ -1350,6 +1350,7 @@ async function loadApiPermissions(apiId: number) {
 </script>
 
 <style lang="scss" scoped>
+
 .custom-api-form__step {
   padding: 20px 80px;
   margin-bottom: 20px;
@@ -1359,7 +1360,7 @@ async function loadApiPermissions(apiId: number) {
 
 .custom-api-form {
   padding: 20px 30px;
-  max-height: 600px;
+  // max-height: 600px;
   overflow-y: auto;
 
   .tooltip-icon {
@@ -1380,6 +1381,7 @@ async function loadApiPermissions(apiId: number) {
     border: 1px solid var(--el-border-color);
     border-radius: 4px;
     overflow: hidden;
+    width: 100%;
 
     .sql-toolbar {
       display: flex;
@@ -1445,7 +1447,7 @@ async function loadApiPermissions(apiId: number) {
 
 .custom-api-test-form {
   padding: 20px 30px;
-  max-height: 600px;
+  // max-height: 600px;
   overflow-y: auto;
 
   .response-header {
@@ -1458,8 +1460,8 @@ async function loadApiPermissions(apiId: number) {
   .response-wrapper {
     border: 1px solid var(--el-border-color);
     border-radius: 4px;
-    min-height: 300px;
-    max-height: 400px;
+    // min-height: 300px;
+    // max-height: 400px;
     overflow: auto;
   }
 
@@ -1488,6 +1490,9 @@ async function loadApiPermissions(apiId: number) {
 
 :deep(.el-step__description) {
   font-size: 12px;
+}
+:deep(.el-form-item__content) { 
+ display: block !important;
 }
 
 // 滚动条美化

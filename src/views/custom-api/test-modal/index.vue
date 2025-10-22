@@ -770,4 +770,8 @@ function closeEvent() {
     }
   }
 }
+
+:deep(.el-form-item__content) { 
+ display: block !important;
+}
 </style>
