@@ -81,7 +81,7 @@ export const httpOption = {
         } else if (status == 403) {
           message.error('权限不足，请联系管理员')
         } else if (status == 404) {
-          message.error('接口不存在，请检查接口路径')
+          // message.error('接口不存在，请检查接口路径')
         } else if (status >= 500) {
           message.error('服务器错误，请稍后重试')
         } else {
