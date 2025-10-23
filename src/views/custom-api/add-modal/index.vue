@@ -39,7 +39,6 @@
             clearable
         />
       </el-form-item>
-
       <el-form-item label="请求方式" prop="apiType">
         <el-select v-model="formData.apiType" placeholder="请选择HTTP请求方式">
           <el-option label="GET" value="GET">
@@ -73,7 +72,6 @@
           </template>
         </el-input>
       </el-form-item>
-
       <el-form-item label="数据源" prop="dataSourceId">
         <el-select
             v-model="formData.dataSourceId"
@@ -757,7 +755,7 @@ async function showModal(apiId?: number) {
   stepIndex.value = 0
   httpStatus.value = null
   responseTime.value = null
-
+  await loadDataSourceList(true);
   if (apiId) {
     isEdit.value = true
     modelConfig.title = '编辑API'
@@ -790,7 +788,7 @@ async function loadApiDetail(apiId: number) {
       formData.name = api.apiName || api.api_name
       formData.path = api.apiPath || api.api_path
       formData.remark = api.description
-      formData.dataSourceId = api.dataSourceId || api.data_source_id
+      formData.dataSourceId = api.data_source.id
       formData.apiType = api.httpMethod || api.http_method
       formData.sqlTemp = api.sqlTemplate || api.sql_template
       formData.responseFormat = api.responseFormat || api.response_format || 'json'
