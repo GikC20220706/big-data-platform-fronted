@@ -200,7 +200,7 @@ const rules = reactive<FormRules>({
   ]
 })
 const typeList = reactive([
-  {
+/*  {
     label: 'Kubernetes',
     value: 'kubernetes',
   },
@@ -211,7 +211,7 @@ const typeList = reactive([
   {
     label: 'StandAlone',
     value: 'standalone',
-  },
+  },*/
   {
     label: 'Hadoop',
     value: 'hadoop',
@@ -348,5 +348,8 @@ defineExpose({
 .add-computer-group {
   padding: 12px 20px 0 20px;
   box-sizing: border-box;
+}
+:deep(.el-input__inner[type="number"]){
+  padding-left: 30px !important;
 }
 </style>
