@@ -715,6 +715,7 @@ const httpStatus = ref<number | null>(null)
 const responseTime = ref<number | null>(null)
 
 const dataSourceList = ref<Array<{ label: string; value: number; type: string }>>([])
+const apiUserList = ref<Array<{ id: number; username: string; display_name: string }>>([])
 
 const modelConfig = reactive({
   title: '添加API',
@@ -739,11 +740,10 @@ const modelConfig = reactive({
 
 const formData = reactive({
   ...defaultApiFormData,
-  accessLevel: 'authenticated',  // 🔧 添加访问级别
-  allowedUserIds: [] as number[]  // 🔧 添加允许的用户ID列表
+  accessLevel: 'authenticated',
+  allowedUserIds: [] as number[]
 })
 const formDataTest = reactive({...defaultTestFormData})
-const apiUserList = ref<Array<{ id: number; username: string; display_name: string }>>([])
 
 // ==================== 对外方法 ====================
 
@@ -798,7 +798,6 @@ async function loadApiDetail(apiId: number) {
       if (formData.accessLevel === 'restricted') {
         await loadApiPermissions(apiId)
       }
-      console.log('赋值后的 formData.id:', formData.id)
 
       // 设置参数列表
       if (api.parameters && api.parameters.length > 0) {
@@ -885,6 +884,11 @@ async function saveAndNext() {
       ElMessage.warning('请完整填写表单')
       return
     }
+    // 手动验证
+    if (formData.accessLevel === 'restricted' && formData.allowedUserIds.length === 0) {
+      ElMessage.warning('限定用户模式下，请至少选择一个用户')
+      return
+    }
 
     saveLoading.value = true
 
@@ -897,6 +901,7 @@ async function saveAndNext() {
         responseFormat: formData.responseFormat,
         cacheTtl: formData.cacheTtl,
         rateLimit: formData.rateLimit,
+        accessLevel: formData.accessLevel,
         parameters: formData.parameters.map(p => ({
           paramName: p.paramName,
           paramType: p.paramType,
@@ -904,16 +909,19 @@ async function saveAndNext() {
           defaultValue: p.defaultValue || null,
           description: p.description || null,
           validationRule: p.validationRule || null
-        })),
-        accessLevel: formData.accessLevel
+        }))
       }
 
       const res = await UpdateCustomApiData(formData.id, apiRequest)
       if (formData.accessLevel === 'restricted' && formData.allowedUserIds.length > 0) {
-        await GrantAPIPermissions({
-          api_id: formData.id,
-          user_ids: formData.allowedUserIds
-        })
+        try {
+          await GrantAPIPermissions({
+            api_id: formData.id,
+            user_ids: formData.allowedUserIds
+          })
+        } catch (error) {
+          console.error('授权失败:', error)
+        }
       }
       ElMessage.success(res.message || res.msg || '更新成功')
     } else {
@@ -943,10 +951,14 @@ async function saveAndNext() {
       if (res.data && res.data.api_id) {
         formData.id = res.data.api_id
         if (formData.accessLevel === 'restricted' && formData.allowedUserIds.length > 0) {
-          await GrantAPIPermissions({
-            api_id: formData.id,
-            user_ids: formData.allowedUserIds
-          })
+          try {
+            await GrantAPIPermissions({
+              api_id: formData.id,
+              user_ids: formData.allowedUserIds
+            })
+          } catch (error) {
+            console.error('授权失败:', error)
+          }
         }
       }
       ElMessage.success(res.message || res.msg || '创建成功')
@@ -1282,10 +1294,12 @@ function removeTestParam(index: number) {
  * 重置表单
  */
 function resetForm() {
-  Object.assign(formData, {...defaultApiFormData,
-    accessLevel: 'authenticated',  // 🔧 添加
-    allowedUserIds: [] })
+  Object.assign(formData, {...defaultApiFormData})
   Object.assign(formDataTest, {...defaultTestFormData})
+
+  formData.accessLevel = 'authenticated'
+  formData.allowedUserIds = []
+
   formRef.value?.resetFields()
   formTestRef.value?.resetFields()
   stepIndex.value = 0
@@ -1326,7 +1340,7 @@ async function loadApiUserList(visible: boolean) {
   }
 }
 
-// 添加访问级别变化处理
+// 访问级别变化处理
 function handleAccessLevelChange(value: string) {
   if (value !== 'restricted') {
     formData.allowedUserIds = []

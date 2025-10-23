@@ -294,7 +294,7 @@ export const formRules = {
     accessLevel: [
         { required: true, message: '请选择访问级别', trigger: 'change' }
     ],
-    allowedUserIds: [
+    /*allowedUserIds: [
         {
             validator: (rule: any, value: any[], callback: any) => {
                 if (formData.accessLevel === 'restricted' && (!value || value.length === 0)) {
@@ -305,7 +305,7 @@ export const formRules = {
             },
             trigger: 'change'
         }
-    ]
+    ]*/
 }
 
 // ==================== 默认表单数据 ====================
@@ -457,6 +457,8 @@ export const defaultApiFormData = {
     responseFormat: 'json',
     cacheTtl: 300,
     rateLimit: 100,
+    accessLevel: 'authenticated',
+    allowedUserIds: [],
     parameters: [] as Array<{
         paramName: string
         paramType: string

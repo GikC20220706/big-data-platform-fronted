@@ -113,6 +113,7 @@ export interface UpdateApiRequest {
     cacheTtl?: number | null
     rateLimit?: number | null
     isActive?: boolean | null
+    isPublic?: boolean | null
     parameters?: ApiParameterCreate[] | null
 }
 

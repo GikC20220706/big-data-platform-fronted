@@ -53,6 +53,7 @@ import FieldFormat from '@/views/data-planning/field-format/index.vue'
 import IndicatorSystem from '@/views/data-planning/indicator-system/index.vue'
 import DataModel from '@/views/data-planning/data-model/index.vue'
 import ModelField from '@/views/data-planning/data-model/model-field/index.vue'
+import ApiUser from '@/views/api-user/index.vue'
 
 
 export default [
@@ -281,5 +282,10 @@ export default [
     path: 'global-variables',
     name: 'global-variables',
     component: GlobalVariables
+  },
+  {
+    path: 'api-user',
+    name: 'api-user',
+    component: ApiUser
   }
 ]
