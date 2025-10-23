@@ -49,16 +49,20 @@
 
       <!-- Doris集群配置 -->
       <template v-if="formData.clusterType === 'doris'">
-        <el-form-item label="FE节点地址" prop="webApiConfig.fe_host">
-          <el-input v-model="formData.webApiConfig.fe_host" placeholder="如：192.168.1.100" />
+        <el-form-item label="FE节点地址" prop="webApiConfig.frontend_host">
+          <el-input v-model="formData.webApiConfig.frontend_host" placeholder="如：192.168.1.100" />
         </el-form-item>
 
-        <el-form-item label="FE HTTP端口" prop="webApiConfig.fe_http_port">
-          <el-input-number v-model="formData.webApiConfig.fe_http_port" :min="1" :max="65535" />
+        <el-form-item label="FE HTTP端口" prop="webApiConfig.frontend_web_port">
+          <el-input-number v-model="formData.webApiConfig.frontend_web_port" :min="1" :max="65535" />
         </el-form-item>
 
-        <el-form-item label="FE查询端口" prop="webApiConfig.fe_query_port">
-          <el-input-number v-model="formData.webApiConfig.fe_query_port" :min="1" :max="65535" />
+        <el-form-item label="用户名" prop="webApiConfig.username">
+          <el-input v-model="formData.webApiConfig.username" placeholder="请输入用户名" />
+        </el-form-item>
+
+        <el-form-item label="密码" prop="webApiConfig.password">
+          <el-input v-model="formData.webApiConfig.password" type="password" show-password placeholder="请输入密码" />
         </el-form-item>
 
         <el-form-item label="FE HA节点">
@@ -136,9 +140,10 @@ const formData = reactive({
     journalnode_port: 8485,
 
     // Doris配置
-    fe_host: '',
-    fe_http_port: 8030,
-    fe_query_port: 9030,
+    frontend_host: '',
+    frontend_web_port: 8060,
+    username: '',
+    password: '',
     fe_ha_hosts: [],
 
     // Flink配置
@@ -168,7 +173,7 @@ const rules = reactive<FormRules>({
       }
     }
   ],
-  'webApiConfig.fe_host': [
+  'webApiConfig.frontend_host': [
     {
       required: true,
       message: '请输入FE节点地址',
@@ -177,6 +182,32 @@ const rules = reactive<FormRules>({
         // 只有选择了doris类型才需要验证这个字段
         if (formData.clusterType === 'doris' && !value) {
           callback(new Error('请输入FE节点地址'))
+        } else {
+          callback()
+        }
+      }
+    },
+    {
+      required: true,
+      message: '请输入用户名',
+      trigger: ['blur', 'change'],
+      validator: (rule, value, callback) => {
+        // 只有选择了doris类型才需要验证这个字段
+        if (formData.clusterType === 'doris' && !formData.webApiConfig.username) {
+          callback(new Error('请输入用户名'))
+        } else {
+          callback()
+        }
+      }
+    },
+    {
+      required: true,
+      message: '请输入密码',
+      trigger: ['blur', 'change'],
+      validator: (rule, value, callback) => {
+        // 只有选择了doris类型才需要验证这个字段
+        if (formData.clusterType === 'doris' && !formData.webApiConfig.password) {
+          callback(new Error('请输入密码'))
         } else {
           callback()
         }
@@ -200,18 +231,18 @@ const rules = reactive<FormRules>({
   ]
 })
 const typeList = reactive([
-/*  {
-    label: 'Kubernetes',
-    value: 'kubernetes',
-  },
-  {
-    label: 'Yarn',
-    value: 'yarn',
-  },
-  {
-    label: 'StandAlone',
-    value: 'standalone',
-  },*/
+  /*  {
+      label: 'Kubernetes',
+      value: 'kubernetes',
+    },
+    {
+      label: 'Yarn',
+      value: 'yarn',
+    },
+    {
+      label: 'StandAlone',
+      value: 'standalone',
+    },*/
   {
     label: 'Hadoop',
     value: 'hadoop',
@@ -244,9 +275,10 @@ function showModal(cb: () => void, data: any): void {
     journalnode_port: 8485,
 
     // Doris配置
-    fe_host: '',
-    fe_http_port: 8030,
-    fe_query_port: 9030,
+    frontend_host: '',
+    frontend_web_port: 8060,
+    username: '',
+    password: '',
     fe_ha_hosts: [],
 
     // Flink配置
