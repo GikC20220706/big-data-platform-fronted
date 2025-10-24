@@ -117,9 +117,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button
+                style="display: inline-block;"
                 type="primary"
                 size="small"
                 text
@@ -129,6 +130,7 @@
               密钥管理
             </el-button>
             <el-button
+                style="display: inline-block;"
                 type="primary"
                 size="small"
                 text
@@ -138,6 +140,7 @@
               编辑
             </el-button>
             <el-button
+                style="display: inline-block;"
                 type="danger"
                 size="small"
                 text

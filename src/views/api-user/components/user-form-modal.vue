@@ -9,7 +9,7 @@
         ref="formRef"
         :model="formData"
         :rules="formRules"
-        label-width="100px"
+        label-width="100px"        
     >
       <el-form-item label="用户名" prop="username">
         <el-input
@@ -57,8 +57,8 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
+      <el-button style="display: inline-block;" @click="visible = false">取消</el-button>
+      <el-button style="display: inline-block;"  type="primary" :loading="submitLoading" @click="handleSubmit">
         {{ submitLoading ? '提交中...' : '确定' }}
       </el-button>
     </template>
@@ -70,6 +70,7 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { CreateAPIUser, UpdateAPIUser, GetAPIUserDetail } from '@/services/api-user.service'
+import { left } from '@antv/x6/lib/registry/port-layout/line'
 
 // ==================== Props & Emits ====================
 
@@ -201,3 +202,10 @@ function resetForm() {
   formRef.value?.resetFields()
 }
 </script>
+<style lang="scss" scoped>
+:deep(.el-form-item) {
+  .el-form-item__label::before{
+    position:static !important
+  }  
+}
+</style>
