@@ -131,7 +131,7 @@ function queryVmlistData(loading = false) {
 function handleCurrentChange(page: number) {
   paginationInfo.value.page = page - 1
 
-  queryVmlistData()
+  // queryVmlistData()
 }
 
 // 展示工作流对应流程图
@@ -150,7 +150,7 @@ function reRunWorkFlowDataEvent(data: any) {
     }
   }).then((res: any) => {
     ElMessage.success(res.msg || '重跑成功')
-    queryVmlistData()
+    // queryVmlistData()
   }).catch((error: any) => {
     console.error('重跑失败:', error)
     ElMessage.error('重跑失败')
@@ -170,7 +170,7 @@ function deleteWorkflowSchedule(data: any) {
       url: `/api/v1/scheduler/executions/${data.workflowInstanceId}`
     }).then((res: any) => {
       ElMessage.success(res.msg || '删除成功')
-      queryVmlistData()
+      // queryVmlistData()
     }).catch((error: any) => {
       console.error('删除失败:', error)
       ElMessage.error('删除失败')
@@ -179,10 +179,10 @@ function deleteWorkflowSchedule(data: any) {
 }
 
 onMounted(() => {
-  queryVmlistData()
-  timer.value = setInterval(() => {
-      queryVmlistData(true)
-  }, 3000)
+  // queryVmlistData()
+  // timer.value = setInterval(() => {
+  //     queryVmlistData(true)
+  // }, 3000)
 })
 
 onUnmounted(() => {
