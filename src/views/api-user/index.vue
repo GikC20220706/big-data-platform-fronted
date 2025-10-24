@@ -66,15 +66,16 @@
           v-loading="loading"
       >
         <el-table-column prop="id" label="ID" width="80" />
-
-        <el-table-column label="用户信息" min-width="200">
-          <template #default="{ row }">
-            <div>
-              <div style="font-weight: 600">{{ row.display_name }}</div>
+        <el-table-column label="显示名称" min-width="200">
+          <template #default="{ row }">            
+              <div style="font-weight: 600">{{ row.display_name }}</div>           
+          </template>
+        </el-table-column>
+        <el-table-column label="用户名" min-width="200">
+          <template #default="{ row }">          
               <div style="font-size: 12px; color: #909399; margin-top: 4px">
                 @{{ row.username }}
-              </div>
-            </div>
+              </div>            
           </template>
         </el-table-column>
 
