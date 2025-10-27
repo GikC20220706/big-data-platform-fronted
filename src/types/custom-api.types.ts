@@ -112,6 +112,7 @@ export interface UpdateApiRequest {
     responseFormat?: ResponseFormat | null
     cacheTtl?: number | null
     rateLimit?: number | null
+    accessLevel?: string
     isActive?: boolean | null
     isPublic?: boolean | null
     parameters?: ApiParameterCreate[] | null

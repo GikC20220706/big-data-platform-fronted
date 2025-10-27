@@ -438,6 +438,26 @@
           label-position="top"
           :model="formDataTest"
       >
+        <!-- 🔧 添加API Key测试选项 -->
+        <el-form-item label="测试模式">
+          <el-radio-group v-model="testMode">
+            <el-radio label="admin">管理员测试（无需密钥）</el-radio>
+            <el-radio label="user">用户测试（需要密钥）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <!-- 🔧 如果选择用户测试，显示API Key输入 -->
+        <el-form-item v-if="testMode === 'user'" label="API密钥">
+          <el-input
+              v-model="testApiKey"
+              placeholder="请输入API密钥进行测试"
+              type="password"
+              show-password
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 4px">
+            使用真实的API密钥测试权限控制
+          </div>
+        </el-form-item>
         <el-form-item label="请求信息">
           <el-descriptions :column="2" border>
             <el-descriptions-item label="API名称">
@@ -717,6 +737,10 @@ const responseTime = ref<number | null>(null)
 const dataSourceList = ref<Array<{ label: string; value: number; type: string }>>([])
 const apiUserList = ref<Array<{ id: number; username: string; display_name: string }>>([])
 
+const testMode = ref<'admin' | 'user'>('admin')  // 测试模式
+const testApiKey = ref('')  // API密钥
+const testResult = ref<any>(null)
+
 const modelConfig = reactive({
   title: '添加API',
   visible: false,
@@ -952,6 +976,12 @@ async function saveAndNext() {
         formData.id = res.data.api_id
         if (formData.accessLevel === 'restricted' && formData.allowedUserIds.length > 0) {
           try {
+            // 🔧 添加日志调试
+            console.log('准备授权:', {
+              api_id: formData.id,
+              user_ids: formData.allowedUserIds
+            })
+
             await GrantAPIPermissions({
               api_id: formData.id,
               user_ids: formData.allowedUserIds
@@ -985,8 +1015,8 @@ function prepareTestData() {
 
   formDataTest.id = formData.id
   formDataTest.method = formData.apiType
-  formDataTest.path = `${location.origin}${formData.path}`
-
+  // formDataTest.path = `${location.origin}${formData.path}`
+  formDataTest.path = formData.path
   // 初始化请求头
   formDataTest.headerConfig = [
     {label: 'Content-Type', value: 'application/json'}
@@ -1114,6 +1144,9 @@ function extractParameters() {
 /**
  * 测试API
  */
+/**
+ * 测试API
+ */
 async function testApi() {
   // 验证POST请求的JSON格式
   if (formDataTest.method === 'POST' && formDataTest.bodyParams) {
@@ -1123,6 +1156,12 @@ async function testApi() {
       ElMessage.warning('请求体JSON格式错误,请检查')
       return
     }
+  }
+
+  // 🔧 如果是用户测试模式但没有输入API Key，提示用户
+  if (testMode.value === 'user' && !testApiKey.value) {
+    ElMessage.warning('用户测试模式需要提供API密钥')
+    return
   }
 
   testLoading.value = true
@@ -1139,6 +1178,11 @@ async function testApi() {
         headerParams[h.label] = h.value
       }
     })
+
+    // 🔧 如果是用户测试模式，添加API Key到headers
+    if (testMode.value === 'user' && testApiKey.value) {
+      headerParams['X-API-Key'] = testApiKey.value
+    }
 
     let requestBody: Record<string, any> = {}
     if (formDataTest.method === 'GET') {
@@ -1163,30 +1207,46 @@ async function testApi() {
     httpStatus.value = res.data?.httpStatus || res.data?.http_status || 200
 
     if (res.data) {
+      // 🔧 保存测试结果（用于显示测试模式）
+      testResult.value = res.data
+
       if (res.data.body || res.data.data) {
         const responseData = res.data.body || res.data.data
         formDataTest.returnConfig = JSON.stringify(responseData, null, 2)
       } else {
         formDataTest.returnConfig = JSON.stringify(res.data, null, 2)
       }
-      ElMessage.success('测试成功')
+
+      // 🔧 根据测试模式显示不同的消息
+      const testModeMsg = testMode.value === 'user' ? '（已验证权限）' : '（未验证权限）'
+      ElMessage.success(`测试成功 ${testModeMsg}`)
     }
   } catch (error: any) {
     console.error('测试失败:', error)
     responseTime.value = Date.now() - startTime
-    httpStatus.value = error.status || error.response?.status || 500
+
+    // 🔧 处理不同的HTTP状态码
+    if (error.response?.status === 401) {
+      httpStatus.value = 401
+      ElMessage.error('API密钥验证失败：' + (error.response?.data?.detail || 'API Key无效'))
+    } else if (error.response?.status === 403) {
+      httpStatus.value = 403
+      ElMessage.error('权限不足：' + (error.response?.data?.detail || '您没有权限访问此API'))
+    } else {
+      httpStatus.value = error.status || error.response?.status || 500
+      ElMessage.error('测试失败: ' + (error.message || '未知错误'))
+    }
 
     formDataTest.returnConfig = JSON.stringify(
         {
           success: false,
           error: error.message || '测试失败',
+          status_code: httpStatus.value,
           details: error.response?.data || error.data
         },
         null,
         2
     )
-
-    ElMessage.error('测试失败: ' + (error.message || '未知错误'))
   } finally {
     testLoading.value = false
   }
@@ -1354,6 +1414,7 @@ async function loadApiPermissions(apiId: number) {
 
     if (res.data && res.data.permissions) {
       formData.allowedUserIds = res.data.permissions.map((p: any) => p.user_id)
+      console.log('设置的用户ID:', formData.allowedUserIds) // 调试日志
     }
   } catch (error) {
     console.error('加载权限失败:', error)

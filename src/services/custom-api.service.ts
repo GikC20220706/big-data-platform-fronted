@@ -263,13 +263,30 @@ class CustomApiService {
      */
     async testCustomApiData(params: TestApiRequest): Promise<any> {
         try {
+            // 🔧 准备请求体
+            const requestData = {
+                query_params: {},
+                body_params: params.requestBody || {},
+                header_params: params.headerParams || {}
+            }
+
+            // 🔧 准备请求头（用于传递API Key）
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+            }
+
+            // 🔧 如果headerParams中包含X-API-Key，提取到headers中
+            if (params.headerParams && params.headerParams['X-API-Key']) {
+                headers['X-API-Key'] = params.headerParams['X-API-Key']
+                // 从headerParams中移除，避免重复
+                delete requestData.header_params['X-API-Key']
+            }
+
             const response = await http.request<ApiResponse<any>>({
                 method: 'post',
                 url: `/api/v1/custom-api/custom-api/${params.id}/test`,
-                params: {
-                    header_params: params.headerParams || {},
-                    request_body: params.requestBody || {}
-                }
+                data: requestData,  // 🔧 改用data而不是params
+                headers: headers    // 🔧 传递headers
             })
 
             if (response.data) {
@@ -280,6 +297,7 @@ class CustomApiService {
                     data: {
                         ...testResult,
                         body: testResult.data,
+                        test_mode: response.data.test_mode,  // 🔧 包含测试模式信息
                         msg: testResult.errorMessage || '测试成功'
                     },
                     msg: response.message || '测试完成'
@@ -287,8 +305,9 @@ class CustomApiService {
             }
 
             return response
-        } catch (error) {
+        } catch (error: any) {
             console.error('测试API失败:', error)
+            // 🔧 保留错误信息以便前端处理
             throw error
         }
     }

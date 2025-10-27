@@ -198,6 +198,10 @@ export class CustomApiAdapter {
             backendRequest.rate_limit = request.rateLimit
         }
 
+        if (request.accessLevel !== undefined) {
+            backendRequest.access_level = request.accessLevel
+        }
+
         if (request.isActive !== undefined) {
             backendRequest.is_active = request.isActive
         }
