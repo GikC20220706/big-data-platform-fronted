@@ -15,9 +15,13 @@ interface SerchParams {
 
 export function GetWorkflowList(params: SerchParams): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/pageWorkflow',
-    params: params
+    method: 'get',
+    url: '/api/v1/job-workflow/page',
+    params: {
+      page: params.page,
+      pageSize: params.pageSize,
+      searchKeyWord: params.searchKeyWord
+    }
   })
 }
 
@@ -25,17 +29,24 @@ export function GetWorkflowList(params: SerchParams): Promise<any> {
 export function AddWorkflowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/addWorkflow',
-    params: params
+    url: '/api/v1/job-workflow/add',
+    data: {
+      name: params.name,
+      remark: params.remark
+    }
   })
 }
 
 // 更新
 export function UpdateWorkflowData(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/updateWorkflow',
-    params: params
+    method: 'put',
+    url: '/api/v1/job-workflow/update',
+    data: {
+      workflow_id: params.id,
+      name: params.name,
+      remark: params.remark
+    }
   })
 }
 
@@ -51,18 +62,22 @@ export function UpdateWorkflowData(params: any): Promise<any> {
 // 删除
 export function DeleteWorkflowData(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/deleteWorkflow',
-    params: params
+    method: 'delete',
+    url: `/api/v1/job-workflow/delete/${params.id}`
   })
 }
 
 // 作业-查询
 export function GetWorkflowDetailList(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/pageWork',
-    params: params
+    method: 'get',
+    url: '/api/v1/job-work/page',
+    params: {
+      workflowId: params.workflowId,
+      page: params.page || 0,
+      pageSize: params.pageSize || 10,
+      searchKeyWord: params.searchKeyWord || undefined
+    }
   })
 }
 
@@ -70,17 +85,30 @@ export function GetWorkflowDetailList(params: any): Promise<any> {
 export function AddWorkflowDetailList(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/addWork',
-    params: params
+    url: '/api/v1/job-work/add',
+    data: {
+      workflowId: params.workflowId,
+      name: params.name,
+      workType: params.workType,
+      remark: params.remark,
+      datasourceId: params.datasourceId,
+      clusterId: params.clusterId,
+      clusterNodeId: params.clusterNodeId,
+      containerId: params.containerId
+    }
   })
 }
 
 // 作业-更新
 export function UpdateWorkflowDetailList(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/updateWork',
-    params: params
+    method: 'put',
+    url: '/api/v1/job-work/update',
+    data: {
+      workId: params.workId,
+      name: params.name,
+      remark: params.remark
+    }
   })
 }
 
@@ -88,44 +116,44 @@ export function UpdateWorkflowDetailList(params: any): Promise<any> {
 export function CopyWorkflowDetailList(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/copyWork',
-    params: params
+    url: '/api/v1/job-work/copy',
+    data: {
+      sourceWorkId: params.workId,
+      targetWorkflowId: params.workflowId,
+      newWorkName: params.name
+    }
   })
 }
 
 // 作业-删除
 export function DeleteWorkflowDetailList(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/deleteWork',
-    params: params
+    method: 'delete',
+    url: `/api/v1/job-work/delete/${params.workId}`
   })
 }
 
 // 作业-发布
 export function PublishWorkData(params: any): Promise<any> {
   return http.request({
-    method: 'get',
-    url: '/vip/work/deployWork',
-    params: params
+    method: 'post',
+    url: `/api/v1/job-work/publish/${params.workId}`
   })
 }
 
 // 作业-下线
 export function DeleteWorkData(params: any): Promise<any> {
   return http.request({
-    method: 'get',
-    url: '/vip/work/deleteWork',
-    params: params
+    method: 'post',
+    url: `/api/v1/job-work/offline/${params.workId}`
   })
 }
 
 // 作业-详情-获取数据
 export function GetWorkItemConfig(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getWork',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/detail/${params.workId}`
   })
 }
 
@@ -133,8 +161,11 @@ export function GetWorkItemConfig(params: any): Promise<any> {
 export function RunWorkItemConfig(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/runWork',
-    params: params
+    url: '/api/v1/job-work/run',
+    data: {
+      workId: params.workId,
+      context: params.context || {}
+    }
   })
 }
 
@@ -142,8 +173,10 @@ export function RunWorkItemConfig(params: any): Promise<any> {
 export function TerWorkItemConfig(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/stopJob',
-    params: params
+    url: '/api/v1/job-work/stop',
+    data: {
+      workInstanceId: params.workInstanceId
+    }
   })
 }
 
@@ -151,26 +184,30 @@ export function TerWorkItemConfig(params: any): Promise<any> {
 export function SaveWorkItemConfig(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/configWork',
-    params: params
+    url: '/api/v1/job-work/saveConfig',
+    data: {
+      workId: params.workId,
+      config: params.config
+    }
   })
 }
 
 // 作业-详情-提交日志
 export function GetSubmitLogData(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getSubmitLog',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/instance/${params.instanceId}/log`,
+    params: {
+      log_type: params.logType || 'all'  // all, submit, running
+    }
   })
 }
 
 // 作业-详情-监控信息
 export function GetResultItemDetail(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getStatus',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/instance/${params.workInstanceId}`
   })
 }
 
@@ -179,17 +216,19 @@ export function GetResultItemDetail(params: any): Promise<any> {
 export function SaveWorkflowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/configWorkflow',
-    params: params
+    url: '/api/v1/job-workflow/saveConfig',
+    data: {
+      workflowId: params.workflowId,
+      webConfig: params.webConfig
+    }
   })
 }
 
 // 获取配置的工作流程图信息--流程图
 export function GetWorkflowData(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/getWorkflow',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-workflow/getConfig/${params.workflowId}`
   })
 }
 
@@ -197,8 +236,11 @@ export function GetWorkflowData(params: any): Promise<any> {
 export function RunWorkflowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/runWorkflow',
-    params: params
+    url: '/api/v1/job-workflow/run',
+    data: {
+      workflowId: params.workflowId,
+      context: params.context || {}
+    }
   })
 }
 
@@ -206,17 +248,18 @@ export function RunWorkflowData(params: any): Promise<any> {
 export function StopWorkflowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/abortFlow',
-    params: params
+    url: '/api/v1/job-workflow/abort',
+    data: {
+      workflowInstanceId: params.workflowInstanceId
+    }
   })
 }
 
 // 查询作业流实例接口--流程图
 export function QueryRunWorkInstances(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/getRunWorkInstances',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}`
   })
 }
 
@@ -232,8 +275,13 @@ export function ExportWorkflowData(params: any): Promise<any> {
 export function SaveWorkflowConfigData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/configWorkflowSetting',
-    params: params
+    url: '/api/v1/job-workflow/saveSetting',
+    data: {
+      workflowId: params.workflowId,
+      cronConfig: params.cronConfig,
+      alarmList: params.alarmList,
+      otherConfig: params.otherConfig
+    }
   })
 }
 // 导入作业--流程图
@@ -249,16 +297,14 @@ export function ImportWorkflowData(params: any): Promise<any> {
 export function PublishWorkflowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/vip/work/deployWorkflow',
-    params: params
+    url: `/api/v1/job-workflow/publish/${params.workflowId}`
   })
 }
 // 下线作业流--流程图
 export function UnderlineWorkflowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/vip/work/killWorkflow',
-    params: params
+    url: `/api/v1/job-workflow/offline/${params.workflowId}`
   })
 }
 

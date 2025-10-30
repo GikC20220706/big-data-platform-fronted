@@ -321,26 +321,31 @@ const workTypeName = computed(() => {
 })
 
 function initData() {
-    return new Promise((resolve) => {
-        GetWorkflowDetailList({
-            page: 0,
-            pageSize: 99999,
-            searchKeyWord: searchParam.value,
-            workflowId: workFlowData.value.id
-        }).then((res: any) => {
-            workListItem.value = res.data.content
-            resolve()
-        }).catch(() => {
-            workListItem.value = []
-            resolve()
-        })
+  return new Promise((resolve) => {
+    GetWorkflowDetailList({
+      page: 0,
+      pageSize: 100,
+      searchKeyWord: searchParam.value,
+      workflowId: workFlowData.value.id
+    }).then((res: any) => {
+      if (res.code === 200 && res.data) {
+        workListItem.value = res.data.content || []
+        resolve()
+      } else {
+        workListItem.value = []
+        resolve()
+      }
+    }).catch(() => {
+      workListItem.value = []
+      resolve()
     })
+  })
 }
 
 function getWorkFlows() {
     GetWorkflowList({
-        page: 0,
-        pageSize: 100000,
+        page: 1,
+        pageSize: 100,
         searchKeyWord: ''
     })
         .then((res: any) => {
@@ -492,28 +497,40 @@ function queryRunWorkInstancesEvent() {
 
 // 添加作业
 function addData() {
-    addModalRef.value.showModal((formData: any) => {
-        return new Promise((resolve: any, reject: any) => {
-            AddWorkflowDetailList({
-                ...formData,
-                workflowId: workFlowData.value.id
-            })
-                .then((res: any) => {
-                    ElMessage.success(res.msg)
-                    initData()
-                    resolve()
+  addModalRef.value.showModal((formData: any) => {
+    return new Promise((resolve: any, reject: any) => {
+      console.log('添加作业表单数据:', formData)  // 调试日志
 
-                    showWorkConfig({
-                        id: res.data.workId,
-                        name: res.data.name,
-                        workType: formData.workType
-                    })
-                })
-                .catch((error: any) => {
-                    reject(error)
-                })
-        })
+      AddWorkflowDetailList({
+        name: formData.name,
+        workType: formData.workType,
+        remark: formData.remark,
+        workflowId: workFlowData.value.id,
+        // ✅ 传递数据源ID和其他资源ID
+        datasourceId: formData.datasourceId || undefined,
+        clusterId: formData.clusterId || undefined,
+        clusterNodeId: formData.clusterNodeId || undefined,
+        containerId: formData.containerId || undefined
+      })
+          .then((res: any) => {
+            console.log('创建作业响应:', res)  // 调试日志
+            ElMessage.success(res.msg)
+            initData()
+            resolve()
+
+            // 打开新创建的作业
+            showWorkConfig({
+              id: res.data.workId,
+              name: res.data.name,
+              workType: formData.workType
+            })
+          })
+          .catch((error: any) => {
+            console.error('创建作业失败:', error)
+            reject(error)
+          })
     })
+  })
 }
 
 // 编辑作业

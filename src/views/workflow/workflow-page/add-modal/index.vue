@@ -292,86 +292,103 @@ function clusterIdChangeEvent() {
     formData.clusterNodeId = ''
 }
 
-function getClusterList(e: boolean) {
-    if (e) {
-        GetComputerGroupList({
-            page: 0,
-            pageSize: 10000,
-            searchKeyWord: ''
-        })
-            .then((res: any) => {
-                clusterList.value = res.data.content.map((item: any) => {
-                    return {
-                        label: item.name,
-                        value: item.id
-                    }
-                })
+function getDataSourceList(e: boolean, searchType?: string) {
+  if (e) {
+    GetDatasourceList({
+      page: 1,
+      page_size: 10,
+      searchKeyWord: searchType || ''
+    }).then((res: any) => {
+      if (res.code === 200 && res.data && res.data.sources) {
+        dataSourceList.value = res.data.sources
+            .filter((item: any) =>
+                !(item.dbType === 'KAFKA' && ['EXE_JDBC', 'QUERY_JDBC'].includes(formData.workType)))
+            .map((item: any) => {
+              return {
+                label: item.name,
+                value: item.id
+              }
             })
-            .catch(() => {
-                clusterList.value = []
-            })
-    }
+      } else {
+        dataSourceList.value = []
+      }
+    }).catch(() => {
+      dataSourceList.value = []
+    })
+  }
 }
 function getClusterNodeList(e: boolean) {
-    if (e && formData.clusterId) {
-        GetComputerPointData({
-            page: 0,
-            pageSize: 10000,
-            searchKeyWord: '',
-            clusterId: formData.clusterId
+  if (e && formData.clusterId) {
+    GetComputerPointData({
+      page: 1,
+      pageSize: 100,
+      searchKeyWord: '',
+      clusterId: formData.clusterId
+    })
+        .then((res: any) => {
+          if (res.code === 200 && res.data && res.data.content) {
+            clusterNodeList.value = res.data.content.map((item: any) => {
+              return {
+                label: item.name,
+                value: item.id
+              }
+            })
+          } else {
+            clusterNodeList.value = []
+          }
         })
-            .then((res: any) => {
-                clusterNodeList.value = res.data.content.map((item: any) => {
-                    return {
-                        label: item.name,
-                        value: item.id
-                    }
-                })
-            })
-            .catch(() => {
-                clusterNodeList.value = []
-            })
-    }
+        .catch(() => {
+          clusterNodeList.value = []
+        })
+  }
 }
-function getDataSourceList(e: boolean, searchType?: string) {
-    if (e) {
-        GetDatasourceList({
-            page: 0,
-            pageSize: 10000,
-            searchKeyWord: searchType || ''
-        }).then((res: any) => {
-            dataSourceList.value = res.data.content
-            .filter((item: any) => !(item.dbType === 'KAFKA' && ['EXE_JDBC', 'QUERY_JDBC'].includes(formData.workType)))
-            .map((item: any) => {
-                return {
-                    label: item.name,
-                    value: item.id
-                }
+function getClusterList(e: boolean) {
+  if (e) {
+    GetComputerGroupList({
+      page: 1,
+      pageSize: 100,
+      searchKeyWord: ''
+    })
+        .then((res: any) => {
+          if (res.code === 200 && res.data && res.data.content) {
+            clusterList.value = res.data.content.map((item: any) => {
+              return {
+                label: item.name,
+                value: item.id
+              }
             })
-        }).catch(() => {
-            dataSourceList.value = []
+          } else {
+            clusterList.value = []
+          }
         })
-    }
+        .catch(() => {
+          clusterList.value = []
+        })
+  }
 }
 function getSparkContainerList(e: boolean, searchType?: string) {
-    if (e) {
-        GetSparkContainerList({
-            page: 0,
-            pageSize: 10000,
-            searchKeyWord: ''
+  if (e) {
+    GetSparkContainerList({
+      page: 1,
+      pageSize: 100,
+      searchKeyWord: ''
+    })
+        .then((res: any) => {
+          if (res.code === 200 && res.data && res.data.content) {
+            sparkContainerList.value = res.data.content.map((item: any) => {
+              return {
+                label: item.name,
+                value: item.id
+              }
+            })
+          } else {
+            sparkContainerList.value = []
+          }
         })
-            .then((res: any) => {
-                sparkContainerList.value = res.data.content.map((item: any) => {
-                    return {
-                        label: item.name,
-                        value: item.id
-                    }
-                })
-            })
-            .catch(() => {
-                sparkContainerList.value = []
-            })
-    }
+        .catch(() => {
+          sparkContainerList.value = []
+        })
+  }
 }
 function workTypeChange() {
     formData.datasourceId = ''

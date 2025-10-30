@@ -322,7 +322,7 @@ function initPageTable() {
 function getWorkFlows() {
   GetWorkflowList({
     page: 0,
-    pageSize: 100000,
+    pageSize: 100,
     searchKeyWord: ''
   }).then((res: any) => {
     workFlowList.value = res.data.content

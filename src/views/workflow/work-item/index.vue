@@ -183,12 +183,12 @@ const tabList = reactive([
   {
     name: '运行结果',
     code: 'ReturnData',
-    hide: true
+    hide: false
   },
   {
     name: '运行日志',
     code: 'RunningLog',
-    hide: true
+    hide: false
   },
   // {
   //   name: '监控信息',
@@ -200,60 +200,47 @@ const tabList = reactive([
 const showParse = computed(() => {
   return ['CURL', 'QUERY_JDBC', 'SPARK_SQL','FLINK_SQL', 'BASH', 'PYTHON'].includes(props.workItemConfig.workType)
 })
-function initData(id?: string, tableLoading?: boolean) {
-  loading.value = tableLoading ? false : true
-  networkError.value = networkError.value || false
-  GetWorkItemConfig({
-    workId: props.workItemConfig.id
-  })
-    .then((res: any) => {
-      workConfig = res.data
-      workConfig.workType = props.workItemConfig.workType
-      if (!tableLoading) {
-        sqltextData.value = res.data.script
-      }
-      nextTick(() => {
-        changeStatus.value = false
-        containerInstanceRef.value.initData(id || instanceId.value, (status: string) => {
+function initData() {
+  return new Promise((resolve, reject) => {
+    loading.value = true
+    GetWorkItemConfig({
+      workId: props.workItemConfig.id
+    }).then((res: any) => {
+      workConfig.value = res.data
 
-          if (id) {
-            // 运行结束
-            if (workConfig.workType === 'SPARK_SQL') {
-              tabList.forEach((item: any) => {
-                if (['RunningLog', 'TotalDetail'].includes(item.code)) {
-                  item.hide = false
-                }
-                if (item.code === 'ReturnData') {
-                  item.hide = status === 'FAIL' ? true : false
-                }
-              })
-            } else if (['QUERY_JDBC', 'SPARK_CONTAINER_SQL', 'PRQL', 'CURL', 'BASH', 'PYTHON'].includes(workConfig.workType)) {
-              tabList.forEach((item: any) => {
-                if (['ReturnData'].includes(item.code)) {
-                  item.hide = status === 'FAIL' ? true : false
-                }
-                if (['PYTHON'].includes(workConfig.workType) && ['RunningLog'].includes(item.code)) {
-                  item.hide = status === 'FAIL' ? true : false
-                }
-              })
-            }
-            if (['CURL','FLINK_SQL','PY_SPARK'].includes(workConfig.workType)) {
-              tabList.forEach((item: any) => {
-                if (['RunningLog'].includes(item.code)) {
-                  item.hide = false
-                }
-              })
-            }
-          }
-        })
-      })
+      // 🆕 根据作业类型处理配置显示
+      const config = workConfig.value.config || {}
+
+      if (['QUERY_JDBC', 'EXE_JDBC'].includes(workConfig.value.workType)) {
+        // JDBC类作业：只显示SQL
+        sqltextData.value = config.sql || ''
+      } else if (['SPARK_SQL', 'FLINK_SQL'].includes(workConfig.value.workType)) {
+        // Spark/Flink SQL：只显示SQL
+        sqltextData.value = config.sql || ''
+      } else if (['BASH'].includes(workConfig.value.workType)) {
+        // Bash脚本：只显示脚本
+        sqltextData.value = config.script || ''
+      } else if (['PYTHON'].includes(workConfig.value.workType)) {
+        // Python脚本：只显示脚本
+        sqltextData.value = config.script || ''
+        lang.value = python()  // 切换到Python语法高亮
+      } else {
+        // 其他类型：显示完整JSON
+        sqltextData.value = JSON.stringify(config, null, 2)
+      }
+
+      // 重置变更状态
+      changeStatus.value = false
+
       loading.value = false
       networkError.value = false
-    })
-    .catch(() => {
+      resolve(res)
+    }).catch((err) => {
       loading.value = false
-      networkError.value = false
+      networkError.value = true
+      reject(err)
     })
+  })
 }
 
 // 返回
@@ -292,58 +279,72 @@ function runWorkData() {
       cancelButtonText: '取消',
       type: 'warning'
     }).then(() => {
-      tabList.forEach((item: any) => {
-        if (['RunningLog', 'TotalDetail', 'ReturnData'].includes(item.code)) {
-          item.hide = true
-        }
-      })
-      runningLoading.value = true
-      // 点击运行，默认跳转到提交日志tab
-      activeName.value = 'PublishLog'
-      currentTab.value = markRaw(PublishLog)
-      RunWorkItemConfig({
-        workId: props.workItemConfig.id
-      })
-        .then((res: any) => {
-          runningLoading.value = false
-          instanceId.value = res.data.instanceId
-          ElMessage.success(res.msg)
-          initData(res.data.instanceId, true)
-          nextTick(() => {
-            changeCollapseUp()
-          })
-        })
-        .catch(() => {
-          runningLoading.value = false
-        })
+      executeRun()
     })
   } else {
-    tabList.forEach((item: any) => {
-      if (['RunningLog', 'TotalDetail', 'ReturnData'].includes(item.code)) {
-        item.hide = true
-      }
-    })
-    runningLoading.value = true
-    RunWorkItemConfig({
-      workId: props.workItemConfig.id
-    })
+    executeRun()
+  }
+}
+
+function executeRun() {
+  console.log('开始执行作业')
+  console.log('workType:', workConfig.workType)
+
+  // 显示所有标签页
+  tabList.forEach((item: any) => {
+    item.hide = false
+  })
+
+  runningLoading.value = true
+
+  // 默认显示提交日志
+  activeName.value = 'PublishLog'
+  currentTab.value = markRaw(PublishLog)
+
+  RunWorkItemConfig({
+    workId: props.workItemConfig.id
+  })
       .then((res: any) => {
         runningLoading.value = false
-        instanceId.value = res.data.instanceId
-        ElMessage.success(res.msg)
-        initData(res.data.instanceId, true)
 
-        // 点击运行，默认跳转到提交日志tab
-        activeName.value = 'PublishLog'
-        currentTab.value = markRaw(PublishLog)
+        const workInstanceId = res.data?.workInstanceId || res.data
+        console.log('运行作业响应, instanceId:', workInstanceId)
+
+        if (!workInstanceId || typeof workInstanceId !== 'string') {
+          ElMessage.error('运行失败：未能获取作业实例ID')
+          return
+        }
+
+        // 保存实例ID到组件状态
+        instanceId.value = workInstanceId
+        console.log('保存instanceId:', instanceId.value)
+
         nextTick(() => {
-          changeCollapseUp()
+          // 初始化提交日志组件
+          if (containerInstanceRef.value && containerInstanceRef.value.initData) {
+            console.log('初始化提交日志组件')
+            containerInstanceRef.value.initData(workInstanceId, (status: string) => {
+              console.log('作业执行完成，状态:', status)
+              console.log('当前保存的instanceId:', instanceId.value)
+
+              // 执行成功后不自动切换，让用户手动切换
+              if (status === 'SUCCESS') {
+                console.log('执行成功，用户可以手动切换到运行结果查看')
+              }
+            })
+          }
         })
+
+        // 展开日志区域
+        if (!isCollapse.value) {
+          changeCollapseDown()
+        }
       })
-      .catch(() => {
+      .catch((error) => {
         runningLoading.value = false
+        console.error('运行作业失败:', error)
+        ElMessage.error(error.message || '运行作业失败')
       })
-  }
 }
 
 // 终止
@@ -370,23 +371,84 @@ function terWorkData() {
 // 保存配置
 function saveData() {
   saveLoading.value = true
+
+  // 根据作业类型包装配置
+  let configData: any = {}
+
+  if (['QUERY_JDBC', 'EXE_JDBC'].includes(workConfig.value.workType)) {
+    // ✅ 获取原配置
+    const originalConfig = workConfig.value.config || {}
+
+    console.log('保存前的原配置:', originalConfig)
+    console.log('保存前的SQL:', sqltextData.value)
+
+    // JDBC类：保留所有原配置，只更新SQL
+    configData = {
+      ...originalConfig,  // 保留所有原有配置（包括dataSourceId）
+      sql: sqltextData.value.trim()  // 更新SQL
+    }
+
+    console.log('准备保存的配置:', configData)
+  } else if (['SPARK_SQL', 'FLINK_SQL'].includes(workConfig.value.workType)) {
+    const originalConfig = workConfig.value.config || {}
+    configData = {
+      ...originalConfig,
+      sql: sqltextData.value.trim()
+    }
+  } else if (['BASH', 'PYTHON'].includes(workConfig.value.workType)) {
+    const originalConfig = workConfig.value.config || {}
+    configData = {
+      ...originalConfig,
+      script: sqltextData.value.trim()
+    }
+  } else {
+    // 其他类型：解析JSON
+    try {
+      configData = JSON.parse(sqltextData.value)
+    } catch (e) {
+      ElMessage.error('JSON格式错误，请检查配置')
+      saveLoading.value = false
+      return
+    }
+  }
+
+  // ✅ 确保必要字段存在
+  if (['QUERY_JDBC', 'EXE_JDBC'].includes(workConfig.value.workType)) {
+    if (!configData.dataSourceId) {
+      ElMessage.error('数据源ID不能为空，请重新创建作业并选择数据源')
+      saveLoading.value = false
+      return
+    }
+    if (!configData.timeout) {
+      configData.timeout = 300
+    }
+    if (!configData.type) {
+      configData.type = workConfig.value.workType === 'EXE_JDBC' ? 'execute' : 'query'
+    }
+  }
+
+  console.log('最终保存的配置:', configData)
+
   SaveWorkItemConfig({
-    script: sqltextData.value,
     workId: props.workItemConfig.id,
-    datasourceId: workConfig.datasourceId,
-    // sparkConfig: workConfig.sparkConfig,
-    // clusterId: workConfig.clusterId,
-    // corn: workConfig.corn
+    config: configData
+  }).then((res: any) => {
+    console.log('保存响应:', res)
+    ElMessage.success(res.msg || '保存成功')
+    saveLoading.value = false
+    changeStatus.value = false
+
+    // 重新加载配置以验证
+    initData().then(() => {
+      console.log('重新加载后的配置:', workConfig.value.config)
+    })
+  }).catch((err) => {
+    console.error('保存失败:', err)
+    ElMessage.error(err.message || '保存失败')
+    saveLoading.value = false
   })
-    .then((res: any) => {
-      changeStatus.value = false
-      ElMessage.success(res.msg)
-      saveLoading.value = false
-    })
-    .catch(() => {
-      saveLoading.value = false
-    })
 }
+
 
 // 发布
 function publishData() {
@@ -435,17 +497,37 @@ function changeCollapseUp(e: any) {
   }
 }
 
-function tabChangeEvent(e: string) {
-  const lookup = {
-    PublishLog: PublishLog,
-    ReturnData: ReturnData,
-    RunningLog: RunningLog,
-    TotalDetail: TotalDetail
+function tabChangeEvent(e: any) {
+  console.log('切换标签页:', e)
+  console.log('当前instanceId:', instanceId.value)
+
+  // 检查instanceId是否有效
+  if (!instanceId.value || instanceId.value === 'undefined') {
+    console.error('instanceId无效，无法切换标签页')
+    return
   }
-  activeName.value = e
-  currentTab.value = markRaw(lookup[e])
+
+  // 切换组件
+  if (e === 'PublishLog') {
+    currentTab.value = markRaw(PublishLog)
+  } else if (e === 'ReturnData') {
+    currentTab.value = markRaw(ReturnData)
+  } else if (e === 'RunningLog') {
+    currentTab.value = markRaw(RunningLog)
+  } else if (e === 'TotalDetail') {
+    currentTab.value = markRaw(TotalDetail)
+  }
+
+  // 保存当前instanceId，防止被覆盖
+  const currentInstanceId = instanceId.value
+
   nextTick(() => {
-    containerInstanceRef.value.initData(instanceId.value)
+    setTimeout(() => {
+      if (containerInstanceRef.value && containerInstanceRef.value.initData) {
+        console.log('初始化组件，使用instanceId:', currentInstanceId)
+        containerInstanceRef.value.initData(currentInstanceId)
+      }
+    }, 100)
   })
 }
 

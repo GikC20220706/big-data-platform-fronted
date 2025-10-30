@@ -41,7 +41,7 @@
           </template>
           <template #options="scopeSlot">
             <div class="btn-group">
-              <span v-if="!['UN_AUTO', 'STOP'].includes(scopeSlot.row.status)" @click="underlineWorkFlow(scopeSlot.row)">下线</span>
+              <span v-if="scopeSlot.row.status === 'ONLINE'" @click="underlineWorkFlow(scopeSlot.row)">下线</span>
               <span v-else @click="publishWorkFlow(scopeSlot.row)">发布</span>
               <el-dropdown trigger="click">
                 <span class="click-show-more">更多</span>
