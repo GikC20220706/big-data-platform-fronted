@@ -37,7 +37,34 @@
             >{{ scopeSlot.row.name }}</span>
           </template>
           <template #statusTag="scopeSlot">
-            <ZStatusTag :status="scopeSlot.row.status === 'STOP' ? 'UN_PUBLISHED' : scopeSlot.row.status"></ZStatusTag>
+            <el-tag
+                v-if="scopeSlot.row.status === 'ONLINE'"
+                type="success"
+                size="small"
+            >
+              已上线
+            </el-tag>
+            <el-tag
+                v-else-if="scopeSlot.row.status === 'OFFLINE'"
+                type="danger"
+                size="small"
+            >
+              已下线
+            </el-tag>
+            <el-tag
+                v-else-if="scopeSlot.row.status === 'DRAFT'"
+                type="info"
+                size="small"
+            >
+              草稿
+            </el-tag>
+            <el-tag
+                v-else
+                type="info"
+                size="small"
+            >
+              {{ scopeSlot.row.status }}
+            </el-tag>
           </template>
           <template #options="scopeSlot">
             <div class="btn-group">

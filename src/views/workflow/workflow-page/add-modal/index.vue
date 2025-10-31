@@ -1,144 +1,228 @@
 <template>
-    <BlockModal :model-config="modelConfig">
-        <el-form ref="form" class="add-computer-group" label-position="top" :model="formData" :rules="rules">
-            <el-form-item label="名称" prop="name">
-                <el-input v-model="formData.name" maxlength="200" placeholder="请输入" />
-            </el-form-item>
-            <el-form-item label="类型" prop="workType">
-                <el-select
-                    v-model="formData.workType"
-                    placeholder="请选择"
-                    :disabled="formData.id ? true : false"
-                    @change="workTypeChange"
-                >
-                    <el-option v-for="item in typeList" :key="item.value" :label="item.label" :value="item.value" />
-                </el-select>
-            </el-form-item>
-            <template v-if="renderSense === 'new'">
-                <el-form-item
-                    label="计算集群"
-                    prop="clusterId"
-                    v-if="[
-                        'BASH',
-                        'PYTHON',
-                        'DATA_SYNC_JDBC',
-                        'SPARK_SQL',
-                        'SPARK_JAR',
-                        'FLINK_SQL',
-                        'FLINK_JAR',
-                        'EXCEL_SYNC_JDBC',
-                        'PY_SPARK',
-                        'DB_MIGRATE'
-                    ].includes(formData.workType)"
-                >
-                    <el-select
-                        v-model="formData.clusterId"
-                        placeholder="请选择"
-                        @change="clusterIdChangeEvent"
-                        @visible-change="getClusterList"
-                    >
-                        <el-option
-                            v-for="item in clusterList"
-                            :key="item.value"
-                            :label="item.label"
-                            :value="item.value"
-                        />
-                    </el-select>
-                </el-form-item>
-                <el-form-item
-                    label="集群节点"
-                    prop="clusterNodeId"
-                    v-if="['BASH', 'PYTHON'].includes(formData.workType)"
-                >
-                    <el-select
-                        v-model="formData.clusterNodeId"
-                        placeholder="请选择"
-                        @visible-change="getClusterNodeList"
-                    >
-                        <el-option
-                            v-for="item in clusterNodeList"
-                            :key="item.value"
-                            :label="item.label"
-                            :value="item.value"
-                        />
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="是否连接hive" v-if="['SPARK_SQL'].includes(formData.workType)">
-                    <el-switch v-model="formData.enableHive" @change="enableHiveChange" />
-                </el-form-item>
-                <el-form-item
-                    label="Hive数据源"
-                    :prop="formData.enableHive ? 'datasourceId' : ''"
-                    v-if="formData.enableHive && ['SPARK_SQL'].includes(formData.workType)"
-                >
-                    <el-select
-                        v-model="formData.datasourceId"
-                        placeholder="请选择"
-                        @visible-change="getDataSourceList($event, 'HIVE')"
-                    >
-                        <el-option
-                            v-for="item in dataSourceList"
-                            :key="item.value"
-                            :label="item.label"
-                            :value="item.value"
-                        />
-                    </el-select>
-                </el-form-item>
-                <el-form-item
-                    label="数据源"
-                    prop="datasourceId"
-                    v-if="['EXE_JDBC', 'QUERY_JDBC', 'PRQL'].includes(formData.workType)"
-                >
-                    <el-select v-model="formData.datasourceId" placeholder="请选择" @visible-change="getDataSourceList">
-                        <el-option
-                            v-for="item in dataSourceList"
-                            :key="item.value"
-                            :label="item.label"
-                            :value="item.value"
-                        />
-                    </el-select>
-                </el-form-item>
-                <el-form-item
-                    label="计算容器"
-                    prop="containerId"
-                    v-if="['SPARK_CONTAINER_SQL'].includes(formData.workType)"
-                >
-                    <el-select
-                        v-model="formData.containerId"
-                        placeholder="请选择"
-                        @visible-change="getSparkContainerList"
-                    >
-                        <el-option
-                            v-for="item in sparkContainerList"
-                            :key="item.value"
-                            :label="item.label"
-                            :value="item.value"
-                        />
-                    </el-select>
-                </el-form-item>
-            </template>
-            <el-form-item label="备注">
-                <el-input
-                    v-model="formData.remark"
-                    show-word-limit
-                    type="textarea"
-                    maxlength="200"
-                    :autosize="{ minRows: 4, maxRows: 4 }"
-                    placeholder="请输入"
-                />
-            </el-form-item>
-        </el-form>
-    </BlockModal>
+  <BlockModal :model-config="modelConfig">
+    <el-form
+        ref="form"
+        v-if="showForm"
+        label-position="top"
+        :model="formData"
+        :rules="dynamicRules"
+    >
+      <!-- 作业名称 - 所有类型都需要 -->
+      <el-form-item label="名称" prop="name">
+        <el-input
+            v-model="formData.name"
+            show-word-limit
+            maxlength="200"
+            placeholder="请输入"
+        />
+      </el-form-item>
+
+      <!-- 作业类型 - 新建时显示,编辑时禁用 -->
+      <el-form-item label="类型" prop="workType">
+        <el-select
+            v-model="formData.workType"
+            placeholder="请选择"
+            :disabled="renderSense === 'edit'"
+            @change="workTypeChangeEvent"
+        >
+          <el-option
+              v-for="item in filteredTypeList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+
+      <!-- JDBC类作业 - 需要选择数据源 -->
+      <template v-if="isJdbcType">
+        <el-form-item label="数据源" prop="datasourceId">
+          <el-select
+              v-model="formData.datasourceId"
+              placeholder="请选择"
+              @visible-change="getDataSourceList"
+          >
+            <el-option
+                v-for="item in dataSourceList"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+      </template>
+
+      <!-- Spark/Flink类作业 - 需要选择集群 -->
+      <template v-if="isSparkOrFlinkType">
+        <el-form-item label="计算集群" prop="clusterId">
+          <el-select
+              v-model="formData.clusterId"
+              placeholder="请选择"
+              @visible-change="getClusterList"
+              @change="clusterIdChangeEvent"
+          >
+            <el-option
+                v-for="item in clusterList"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="集群节点" prop="clusterNodeId">
+          <el-select
+              v-model="formData.clusterNodeId"
+              placeholder="请选择"
+              :disabled="!formData.clusterId"
+              @visible-change="getClusterNodeList"
+          >
+            <el-option
+                v-for="item in clusterNodeList"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <!-- Spark容器(可选) -->
+        <template v-if="isSparkType">
+          <el-form-item label="Spark容器" prop="containerId">
+            <el-select
+                v-model="formData.containerId"
+                placeholder="请选择"
+                @visible-change="getSparkContainerList"
+            >
+              <el-option
+                  v-for="item in sparkContainerList"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+
+          <!-- Hive支持 -->
+          <el-form-item label="">
+            <el-checkbox v-model="formData.enableHive" @change="enableHiveChange">
+              启用Hive支持
+            </el-checkbox>
+          </el-form-item>
+        </template>
+      </template>
+
+      <!-- 备注 - 所有类型都可以填写 -->
+      <el-form-item label="备注">
+        <el-input
+            v-model="formData.remark"
+            show-word-limit
+            type="textarea"
+            maxlength="200"
+            :autosize="{ minRows: 4, maxRows: 4 }"
+            placeholder="请输入"
+        />
+      </el-form-item>
+    </el-form>
+  </BlockModal>
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, nextTick } from 'vue'
+import {reactive, ref, nextTick, computed} from 'vue'
 import BlockModal from '@/components/block-modal/index.vue'
 import { ElMessage, FormInstance, FormRules } from 'element-plus'
 import { GetComputerGroupList, GetComputerPointData } from '@/services/computer-group.service'
 import { GetDatasourceList } from '@/services/datasource.service'
 import { GetSparkContainerList } from '@/services/spark-container.service'
 import { TypeList } from '../../workflow.config'
+
+const isJdbcType = computed(() => {
+  return ['EXE_JDBC', 'QUERY_JDBC'].includes(formData.workType)
+})
+
+const isSparkOrFlinkType = computed(() => {
+  return ['SPARK_SQL', 'SPARK_JAR', 'FLINK_SQL', 'FLINK_JAR'].includes(formData.workType)
+})
+
+const isSparkType = computed(() => {
+  return ['SPARK_SQL', 'SPARK_JAR'].includes(formData.workType)
+})
+
+const isDataSyncType = computed(() => {
+  return ['DATA_SYNC_JDBC', 'EXCEL_SYNC_JDBC', 'DB_MIGRATE'].includes(formData.workType)
+})
+
+const filteredTypeList = computed(() => {
+  return typeList.filter(item => {
+    // 可以在这里过滤掉未实现的作业类型
+    return true
+  })
+})
+
+const dynamicRules = computed(() => {
+  const baseRules = {
+    name: [
+      {
+        required: true,
+        message: '请输入作业名称',
+        trigger: ['blur', 'change']
+      }
+    ],
+    workType: [
+      {
+        required: true,
+        message: '请选择类型',
+        trigger: ['blur', 'change']
+      }
+    ]
+  }
+
+  // JDBC类作业需要数据源
+  if (isJdbcType.value) {
+    baseRules['datasourceId'] = [
+      {
+        required: true,
+        message: '请选择数据源',
+        trigger: ['blur', 'change']
+      }
+    ]
+  }
+
+  // Spark/Flink类作业需要集群
+  if (isSparkOrFlinkType.value) {
+    baseRules['clusterId'] = [
+      {
+        required: true,
+        message: '请选择计算集群',
+        trigger: ['blur', 'change']
+      }
+    ]
+    baseRules['clusterNodeId'] = [
+      {
+        required: true,
+        message: '请选择集群节点',
+        trigger: ['blur', 'change']
+      }
+    ]
+
+    // Spark容器可选,不添加必填验证
+  }
+
+  return baseRules
+})
+
+function workTypeChangeEvent() {
+  // 清空可能不相关的字段
+  if (!isJdbcType.value) {
+    formData.datasourceId = ''
+  }
+  if (!isSparkOrFlinkType.value) {
+    formData.clusterId = ''
+    formData.clusterNodeId = ''
+    formData.containerId = ''
+    formData.enableHive = false
+  }
+}
 
 const form = ref<FormInstance>()
 const callback = ref<any>()
@@ -180,50 +264,7 @@ const formData = reactive({
     id: ''
 })
 const typeList = reactive(TypeList)
-const rules = reactive<FormRules>({
-    name: [
-        {
-            required: true,
-            message: '请输入作业名称',
-            trigger: ['blur', 'change']
-        }
-    ],
-    workType: [
-        {
-            required: true,
-            message: '请选择类型',
-            trigger: ['blur', 'change']
-        }
-    ],
-    clusterId: [
-        {
-            required: true,
-            message: '请选择计算集群',
-            trigger: ['blur', 'change']
-        }
-    ],
-    clusterNodeId: [
-        {
-            required: true,
-            message: '请选择集群节点',
-            trigger: ['blur', 'change']
-        }
-    ],
-    datasourceId: [
-        {
-            required: true,
-            message: '请选择数据源',
-            trigger: ['blur', 'change']
-        }
-    ],
-    containerId: [
-        {
-            required: true,
-            message: '请选择计算容器',
-            trigger: ['blur', 'change']
-        }
-    ]
-})
+
 
 function showModal(cb: () => void, data: any): void {
     callback.value = cb
@@ -296,27 +337,38 @@ function getDataSourceList(e: boolean, searchType?: string) {
   if (e) {
     GetDatasourceList({
       page: 1,
-      page_size: 10,
-      searchKeyWord: searchType || ''
+      page_size: 100,
+      include_table_count: false,
+      fast_mode: true
     }).then((res: any) => {
-      if (res.code === 200 && res.data && res.data.sources) {
+      console.log('数据源API响应:', res)
+
+      if (res.code === 200 && res.data && Array.isArray(res.data.sources)) {
         dataSourceList.value = res.data.sources
-            .filter((item: any) =>
-                !(item.dbType === 'KAFKA' && ['EXE_JDBC', 'QUERY_JDBC'].includes(formData.workType)))
+            .filter((item: any) => {
+              // 过滤掉 Kafka 数据源(如果是 JDBC 作业)
+              const sourceType = (item.type || '').toUpperCase()
+              return !(sourceType === 'KAFKA' && ['EXE_JDBC', 'QUERY_JDBC'].includes(formData.workType))
+            })
             .map((item: any) => {
               return {
                 label: item.name,
                 value: item.id
               }
             })
+
+        console.log('处理后的数据源列表:', dataSourceList.value)
       } else {
+        console.warn('数据源数据格式不正确:', res)
         dataSourceList.value = []
       }
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('获取数据源失败:', err)
       dataSourceList.value = []
     })
   }
 }
+
 function getClusterNodeList(e: boolean) {
   if (e && formData.clusterId) {
     GetComputerPointData({
@@ -390,11 +442,7 @@ function getSparkContainerList(e: boolean, searchType?: string) {
         })
   }
 }
-function workTypeChange() {
-    formData.datasourceId = ''
-    formData.clusterId = ''
-    formData.clusterNodeId = ''
-}
+
 function closeEvent() {
     modelConfig.visible = false
 }

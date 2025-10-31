@@ -138,8 +138,8 @@ function okEvent() {
 
 function getClusterList() {
   GetComputerGroupList({
-    page: 0,
-    pageSize: 10000,
+    page: 1,
+    pageSize: 100,
     searchKeyWord: ''
   }).then((res: any) => {
     clusterList.value = res.data.content.map((item: any) => {

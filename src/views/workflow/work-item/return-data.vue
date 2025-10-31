@@ -91,15 +91,37 @@ function getResultDatalist(id: string) {
 
         const resultData = res.data.resultData
 
-        if (!resultData || !resultData.data) {
+        console.log('resultData结构:', resultData)
+
+// 处理空数据情况
+        if (!resultData) {
           console.log('没有结果数据')
           tableConfig.colConfigs = []
           tableConfig.tableData = []
           return
         }
 
-        // JDBC查询结果格式
-        if (resultData.data.columns && resultData.data.rows) {
+// 情况1: resultData直接包含columns和rows
+        if (resultData.columns && resultData.rows) {
+          const columns = resultData.columns
+          const rows = resultData.rows
+
+          console.log('查询结果: 列数=' + columns.length + ', 行数=' + rows.length)
+
+          // 构建表格列配置
+          tableConfig.colConfigs = columns.map((column: string) => ({
+            prop: column,
+            title: column,
+            minWidth: 120,
+            showHeaderOverflow: true,
+            showOverflowTooltip: true
+          }))
+
+          // 设置表格数据
+          tableConfig.tableData = rows
+        }
+// 情况2: resultData.data包含columns和rows
+        else if (resultData.data && resultData.data.columns && resultData.data.rows) {
           const columns = resultData.data.columns
           const rows = resultData.data.rows
 
@@ -117,10 +139,32 @@ function getResultDatalist(id: string) {
           // 设置表格数据
           tableConfig.tableData = rows
         }
-        else if (typeof resultData.data === 'string') {
-          strData.value = resultData.data
-        } else {
-          jsonData.value = JSON.stringify(resultData.data, null, 2)
+// 情况3: resultData是数组(直接就是查询结果)
+        else if (Array.isArray(resultData) && resultData.length > 0) {
+          console.log('数组格式结果,行数=' + resultData.length)
+
+          // 从第一行数据提取列名
+          const columns = Object.keys(resultData[0])
+
+          // 构建表格列配置
+          tableConfig.colConfigs = columns.map((column: string) => ({
+            prop: column,
+            title: column,
+            minWidth: 120,
+            showHeaderOverflow: true,
+            showOverflowTooltip: true
+          }))
+
+          // 设置表格数据
+          tableConfig.tableData = resultData
+        }
+// 情况4: 字符串类型
+        else if (typeof resultData === 'string' || (resultData.data && typeof resultData.data === 'string')) {
+          strData.value = typeof resultData === 'string' ? resultData : resultData.data
+        }
+// 情况5: 其他对象类型,显示JSON
+        else {
+          jsonData.value = JSON.stringify(resultData, null, 2)
         }
       })
       .catch((error) => {

@@ -157,8 +157,8 @@ function showModal(cb: () => void, data: any): void {
 
 function getDataSourceList() {
   GetDatasourceList({
-    page: 0,
-    pageSize: 10000,
+    page: 1,
+    pageSize: 100,
     searchKeyWord: ''
   })
     .then((res: any) => {
@@ -176,8 +176,8 @@ function getDataSourceList() {
 
 function getComputeEngine() {
   GetComputerGroupList({
-    page: 0,
-    pageSize: 10000,
+    page: 1,
+    pageSize: 100,
     searchKeyWord: ''
   })
     .then((res: any) => {

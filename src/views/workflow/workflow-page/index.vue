@@ -403,25 +403,80 @@ function saveData() {
 
 // 删除
 function deleteData(data: any) {
-    ElMessageBox.confirm('确定删除该作业吗？', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-    }).then(() => {
-        DeleteWorkflowDetailList({
-            workId: data.id
-        }).then((res: any) => {
-            initData()
-            if (data.id === workConfig.value.id) {
-                backToFlow()
+  ElMessageBox.confirm('确定删除该作业吗？', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    DeleteWorkflowDetailList({
+      workId: data.id
+    }).then((res: any) => {
+      // 先更新左侧作业列表
+      initData()
+
+      // 如果删除的是当前正在编辑的作业,返回到画布
+      if (data.id === workConfig.value?.id) {
+        backToFlow()
+      }
+
+      // 从画布中移除对应的节点
+      if (containerType.value === 'flow' && zqyFlowRef.value) {
+        const allCells = zqyFlowRef.value.getAllCellData()
+        const webConfig = allCells.map((node: any) => {
+          const item = node.store.data
+          if (item.shape === 'dag-node') {
+            return {
+              position: item.position,
+              shape: item.shape,
+              ports: item.ports,
+              id: item.id,
+              data: item.data,
+              zIndex: item.zIndex
             }
-            // 删除
-            // updateDagNodeList(data, 'edit')
-            ElMessage.success(res.msg)
-        }).catch((error: any) => {
-            console.error(error)
+          } else {
+            return item
+          }
         })
+
+        // 过滤掉被删除的节点
+        const filteredConfig = webConfig.filter((node: any) => {
+          // 保留所有非dag-node节点(边)
+          if (node.shape !== 'dag-node') {
+            return true
+          }
+          // 过滤掉被删除的作业节点
+          return node.id !== data.id
+        })
+
+        // 同时删除与该节点相关的连线
+        const finalConfig = filteredConfig.filter((item: any) => {
+          // 如果是边,检查其source和target是否包含被删除的节点
+          if (item.shape === 'edge') {
+            return item.source?.cell !== data.id && item.target?.cell !== data.id
+          }
+          return true
+        })
+
+        // 重新初始化画布
+        nextTick(() => {
+          zqyFlowRef.value.initCellList(finalConfig)
+          // 自动保存画布配置
+          SaveWorkflowData({
+            workflowId: workFlowData.value.id,
+            webConfig: finalConfig
+          }).then(() => {
+            console.log('画布配置已自动保存')
+          }).catch((err) => {
+            console.error('保存画布配置失败:', err)
+          })
+        })
+      }
+
+      ElMessage.success(res.msg)
+    }).catch((error: any) => {
+      console.error(error)
     })
+  })
 }
 
 // 运行作业流
@@ -568,27 +623,67 @@ function copyData(data: any) {
 }
 
 function initFlowData() {
-    return new Promise((resolve, reject) => {
-        loading.value = true
-        GetWorkflowData({
-            workflowId: workFlowData.value.id
-        }).then((res: any) => {
-            cronConfig.value = res.data?.cronConfig
-            alarmList.value = res.data?.alarmList
-            otherConfig.value = res.data
-            if (res.data?.webConfig) {
-                const webConfig = updateDagNodeList(res.data.webConfig)
-                zqyFlowRef.value.initCellList(webConfig)
-            } else {
-                zqyFlowRef.value.initCellList([])
-            }
-            loading.value = false
-            resolve()
-        }).catch(() => {
-            loading.value = false
-            reject()
+  return new Promise((resolve, reject) => {
+    loading.value = true
+    GetWorkflowData({
+      workflowId: workFlowData.value.id
+    }).then((res: any) => {
+      cronConfig.value = res.data?.cronConfig
+      alarmList.value = res.data?.alarmList
+      otherConfig.value = res.data
+      if (res.data?.webConfig) {
+        // 先更新节点名称
+        let webConfig = updateDagNodeList(res.data.webConfig)
+
+        // 获取当前存在的作业ID列表
+        const existingWorkIds = workListItem.value.map((work: any) => work.id)
+
+        // 过滤掉已删除的节点
+        const filteredConfig = webConfig.filter((item: any) => {
+          // 保留所有非dag-node的元素(边和其他元素)
+          if (item.shape !== 'dag-node') {
+            return true
+          }
+          // 只保留作业列表中存在的节点
+          return existingWorkIds.includes(item.id)
         })
+
+        // 再次过滤边,删除指向不存在节点的边
+        const finalConfig = filteredConfig.filter((item: any) => {
+          if (item.shape === 'edge') {
+            // 检查边的source和target节点是否都存在
+            const sourceExists = existingWorkIds.includes(item.source?.cell)
+            const targetExists = existingWorkIds.includes(item.target?.cell)
+            return sourceExists && targetExists
+          }
+          return true
+        })
+
+        // 如果过滤后的配置与原配置不同,说明有节点被清理,需要保存
+        if (finalConfig.length !== webConfig.length) {
+          console.log('检测到已删除的节点,清理画布配置')
+          // 自动保存清理后的配置
+          SaveWorkflowData({
+            workflowId: workFlowData.value.id,
+            webConfig: finalConfig
+          }).then(() => {
+            console.log('画布配置已自动清理并保存')
+          }).catch((err) => {
+            console.error('保存清理后的画布配置失败:', err)
+          })
+        }
+
+        zqyFlowRef.value.initCellList(finalConfig)
+      } else {
+        zqyFlowRef.value.initCellList([])
+      }
+      loading.value = false
+      resolve()
+    }).catch(() => {
+      loading.value = false
+      reject()
     })
+  })
 }
 
 // 发布作业流

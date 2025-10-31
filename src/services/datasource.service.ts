@@ -22,7 +22,7 @@ export function GetDatasourceList(params: SearchParams = {}): Promise<any> {
     url: '/api/v1/integration/sources',
     params: {
       page: 1,
-      page_size: 10,
+      page_size: 100,
       include_table_count: false,
       fast_mode: true,
       ...params

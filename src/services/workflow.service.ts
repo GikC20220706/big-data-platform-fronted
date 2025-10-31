@@ -105,7 +105,7 @@ export function UpdateWorkflowDetailList(params: any): Promise<any> {
     method: 'put',
     url: '/api/v1/job-work/update',
     data: {
-      workId: params.workId,
+      workId: params.workId || params.id,  // 兼容两种传参方式
       name: params.name,
       remark: params.remark
     }
@@ -207,7 +207,7 @@ export function GetSubmitLogData(params: any): Promise<any> {
 export function GetResultItemDetail(params: any): Promise<any> {
   return http.request({
     method: 'get',
-    url: `/api/v1/job-work/instance/${params.workInstanceId}`
+    url: `/api/v1/job-work/instance/${params.instanceId}`
   })
 }
 

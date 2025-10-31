@@ -208,7 +208,7 @@ function initData() {
     }).then((res: any) => {
       workConfig.value = res.data
 
-      // 🆕 根据作业类型处理配置显示
+      // 根据作业类型处理配置显示
       const config = workConfig.value.config || {}
 
       if (['QUERY_JDBC', 'EXE_JDBC'].includes(workConfig.value.workType)) {
@@ -229,11 +229,16 @@ function initData() {
         sqltextData.value = JSON.stringify(config, null, 2)
       }
 
-      // 重置变更状态
-      changeStatus.value = false
-
       loading.value = false
       networkError.value = false
+
+      // 延迟重置变更状态,确保CodeMirror的change事件已触发完成
+      nextTick(() => {
+        setTimeout(() => {
+          changeStatus.value = false
+        }, 100)
+      })
+
       resolve(res)
     }).catch((err) => {
       loading.value = false
