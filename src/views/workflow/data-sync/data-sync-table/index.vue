@@ -61,9 +61,10 @@
 import { ref, defineProps, onMounted, nextTick, watch } from 'vue'
 import { jsPlumb } from 'jsplumb'
 import { GetTableColumnsByTableId } from '@/services/data-sync.service'
-import { ElMessageBox } from 'element-plus'
+import {ElMessage, ElMessageBox} from 'element-plus'
 import AddCode from '../add-code/index.vue'
 import { useAuthStore } from "@/store/useAuth"
+import { http } from '@/utils/http'
 
 interface connect {
     source: string
@@ -167,49 +168,48 @@ function initPageData(data: any) {
 }
 
 // 根据表名获取映射表字段
-function getTableColumnData(params: TableDetailParam, type: string, onlyInit?: boolean) {
-    return new Promise((resolve, reject) => {
-        if (params.dataSourceId && params.tableName) {
-            GetTableColumnsByTableId(params).then((res: any) => {
-                if (type === 'source') {
-                    sourceTableColumn.value = (res.data.columns || []).map((column: any) => {
-                        return {
-                            code: column.name,
-                            type: column.type,
-                            sql: ''
-                        }
-                    })
-                } else {
-                    targetTableColumn.value = (res.data.columns || []).map((column: any) => {
-                        return {
-                            code: column.name,
-                            type: column.type
-                        }
-                    })
-                }
-                if (!onlyInit) {
-                    instance.deleteEveryConnection()
-                    connectCopy.value = []
-                    nextTick(() => {
-                        initJsPlumb()
-                    })
-                }
-                resolve(true)
-            }).catch(err => {
-                reject(err)
-                console.error(err)
-            })
-        } else {
-            if (type === 'source') {
-                sourceTableColumn.value = []
-            } else {
-                targetTableColumn.value = []
-            }
-            resolve(true)
-        }
-    })
-}
+function getTableColumnData(params: any, type: string, onlyInit?: boolean) {
+  connectNodeLoading.value = true
 
+  http.request({
+    method: 'get',
+    url: `/api/v1/integration/sources/${encodeURIComponent(params.dataSourceName)}/tables/${params.tableName}/schema`,
+    params: {}
+  }).then((res: any) => {
+    connectNodeLoading.value = false
+
+    if (res.code === 200 && res.data) {
+      const columns = res.data.columns || res.data.fields || []
+
+      const columnList = columns.map((column: any) => {
+        return {
+          code: column.name,
+          type: column.type,
+          sql: ''
+        }
+      })
+
+      if (type === 'source') {
+        sourceTableColumn.value = columnList
+      } else {
+        targetTableColumn.value = columnList
+      }
+
+      console.log('字段加载成功:', columnList)
+
+      // 初始化连线
+      if (!onlyInit) {
+        setTimeout(() => {
+          initJsPlumb()
+        }, 100)
+      }
+    }
+  }).catch(err => {
+    connectNodeLoading.value = false
+    console.error('获取字段失败:', err)
+    ElMessage.error('获取字段失败')
+  })
+}
 function tableLinkInit() {
     instance = jsPlumb.getInstance({
         Connector: 'Straight', //连接线形状 Bezier: 贝塞尔曲线 Flowchart: 具有90度转折点的流程线 StateMachine: 状态机 Straight: 直线

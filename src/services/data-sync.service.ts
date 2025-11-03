@@ -43,9 +43,12 @@ interface workIdParam {
 // 作业流-数据同步-获取数据源表
 export function GetDataSourceTables(params: SourceTablesParam): Promise<any> {
     return http.request({
-        method: 'post',
-        url: '/work/getDataSourceTables',
-        params: params
+        method: 'get',
+        url: `/api/v1/integration/sources/${params.dataSourceId}/tables`,
+        params: {
+            limit: 1000,
+            offset: 0
+        }
     })
 }
 
@@ -70,9 +73,9 @@ export function CreateTableWork(params: TableDetailParam): Promise<any> {
 // 作业流-数据同步-根据表获取字段
 export function GetTableColumnsByTableId(params: TableDetailParam): Promise<any> {
     return http.request({
-        method: 'post',
-        url: '/work/getDataSourceColumns',
-        params: params
+        method: 'get',
+        url: `/api/v1/integration/sources/${params.dataSourceId}/tables/${params.tableName}/schema`,
+        params: {}
     })
 }
 

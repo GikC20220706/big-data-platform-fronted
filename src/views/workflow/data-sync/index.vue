@@ -207,6 +207,7 @@ import PublishLog from '../work-item/publish-log.vue'
 import RunningLog from '../work-item/running-log.vue'
 import { Loading } from '@element-plus/icons-vue'
 import LoadingPage from '@/components/loading/index.vue'
+import { http } from '@/utils/http'
 
 interface Option {
     label: string
@@ -467,61 +468,113 @@ function stopData() {
 
 // 获取数据源
 function getDataSource(e: boolean, sourceType: string, type: string) {
-    return new Promise((resolve, reject) => {
-        if (e && sourceType) {
-            let options = []
-            GetDatasourceList({
-                page: 1,
-                pageSize: 100,
-                searchKeyWord: sourceType || ''
-            }).then((res: any) => {
-                options = res.data.content.map((item: any) => {
-                    return {
-                        label: item.name,
-                        value: item.id
-                    }
-                })
-                type === 'source' ? sourceList.value = options : targetList.value = options
-                resolve()
-            }).catch(err => {
-                console.error(err)
-                type === 'source' ? sourceList.value = [] : targetList.value = []
-                reject(err)
-            })
+  return new Promise((resolve, reject) => {
+    if (e && sourceType) {
+      GetDatasourceList({
+        page: 1,
+        page_size: 100,
+        include_table_count: false,
+        fast_mode: true
+      }).then((res: any) => {
+        if (res.code === 200 && res.data && Array.isArray(res.data.sources)) {
+          const options = res.data.sources
+              .filter((item: any) => {
+                const itemType = (item.type || '').toUpperCase()
+                return itemType === sourceType.toUpperCase()
+              })
+              .map((item: any) => {
+                return {
+                  label: item.name,
+                  value: item.id
+                }
+              })
+
+          type === 'source' ? sourceList.value = options : targetList.value = options
+          resolve(options)  // 这里传递 options
         } else {
-            type === 'source' ? sourceList.value = [] : targetList.value = []
-            resolve()
+          type === 'source' ? sourceList.value = [] : targetList.value = []
+          resolve([])
         }
-    })
+      }).catch(err => {
+        console.error(err)
+        type === 'source' ? sourceList.value = [] : targetList.value = []
+        reject(err)
+      })
+    } else {
+      type === 'source' ? sourceList.value = [] : targetList.value = []
+      resolve([])
+    }
+  })
 }
 
 // 获取数据源表
-function getDataSourceTable(e: boolean, dataSourceId: string, type: string) {
-    return new Promise((resolve, reject) => {
-        if (e && dataSourceId) {
-            let options = []
-            GetDataSourceTables({
-                dataSourceId: dataSourceId,
-                tablePattern: ""
-            }).then((res: any) => {
-                options = res.data.tables.map((item: any) => {
-                    return {
-                        label: item,
-                        value: item
-                    }
-                })
-                type === 'source' ? sourceTablesList.value = options : targetTablesList.value = options
-                resolve()
-            }).catch(err => {
-                console.error(err)
-                type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
-                reject(err)
-            })
-        } else {
-            type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
-            resolve()
-        }
+async function getDataSourceTable(e: boolean, dataSourceId: string, type: string) {
+  if (!e || !dataSourceId) {
+    type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+    return Promise.resolve([])
+  }
+
+  try {
+    console.log('getDataSourceTable 被调用:', { dataSourceId, type })
+
+    // 获取当前数据源列表和类型
+    let currentList = type === 'source' ? sourceList.value : targetList.value
+    const dbType = type === 'source' ? formData.sourceDBType : formData.targetDBType
+
+    // 如果数据源列表为空,先加载
+    if (currentList.length === 0 && dbType) {
+      console.log('数据源列表为空,先加载数据源...')
+      await getDataSource(true, dbType, type)
+      // 重新获取列表
+      currentList = type === 'source' ? sourceList.value : targetList.value
+    }
+
+    console.log('当前数据源列表:', currentList)
+
+    // 根据ID查找数据源
+    const sourceItem = currentList.find(s => s.value == dataSourceId)
+
+    console.log('找到的数据源:', sourceItem)
+
+    if (!sourceItem) {
+      console.error('找不到数据源,ID:', dataSourceId)
+      ElMessage.warning('找不到对应的数据源')
+      type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+      return Promise.resolve([])
+    }
+
+    // 使用数据源名称调用API获取表列表
+    const response = await http.request({
+      method: 'get',
+      url: `/api/v1/integration/sources/${encodeURIComponent(sourceItem.label)}/tables`,
+      params: {
+        limit: 1000,
+        offset: 0
+      }
     })
+
+    if (response.code === 200 && response.data && response.data.tables) {
+      const options = response.data.tables.map((item: any) => {
+        return {
+          label: item.table_name,
+          value: item.table_name
+        }
+      })
+
+      type === 'source' ? sourceTablesList.value = options : targetTablesList.value = options
+      console.log('成功加载表列表:', options.length, '张表')
+      return Promise.resolve(options)
+    } else {
+      type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+      return Promise.resolve([])
+    }
+
+  } catch (err) {
+    console.error('获取表列表失败:', err)
+    type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+    ElMessage.error('获取表列表失败')
+    return Promise.reject(err)
+  }
 }
 
 // 数据预览
@@ -549,33 +602,65 @@ function createTableWork() {
 }
 
 // 分区键
-function getTableColumnData(e: boolean, dataSourceId: string, tableName: string) {
-    if (e && dataSourceId && tableName) {
-        GetTableColumnsByTableId({
-            dataSourceId: dataSourceId,
-            tableName: tableName
-        }).then((res: any) => {
-            partKeyList.value = (res.data.columns || []).map((column: any) => {
-                return {
-                    label: column.name,
-                    value: column.name
-                }
-            })
-        }).catch(err => {
-            console.error(err)
-        })
+function getTableColumnData(params: TableDetailParam, type: string, onlyInit?: boolean) {
+  connectNodeLoading.value = true
+
+  // 先根据dataSourceId找到数据源名称
+  const sourceList = type === 'source'
+      ? props.formData.sourceDBId
+      : props.formData.targetDBId
+
+  // 使用数据源名称而不是ID
+  GetTableColumnsByTableId({
+    dataSourceId: sourceList,  // 这里需要传数据源名称
+    tableName: params.tableName
+  }).then((res: any) => {
+    connectNodeLoading.value = false
+
+    if (res.code === 200 && res.data) {
+      // 适配新的返回格式
+      const columns = res.data.columns || res.data.fields || []
+
+      const columnList = columns.map((column: any) => {
+        return {
+          code: column.name || column.column_name || column.field,
+          type: column.type || column.data_type || column.column_type,
+          sql: ''
+        }
+      })
+
+      if (type === 'source') {
+        sourceTableColumn.value = columnList
+      } else {
+        targetTableColumn.value = columnList
+      }
+
+      // 初始化连线
+      if (!onlyInit) {
+        initJsPlumb()
+      }
     }
+  }).catch(err => {
+    connectNodeLoading.value = false
+    console.error('获取字段失败:', err)
+  })
 }
 
 function tableChangeEvent(e: string, dataSourceId: string, type: string) {
-    changeStatus.value = true
-    if (type === 'source') {
-        formData.partitionColumn = ''
-    }
+  changeStatus.value = true
+  if (type === 'source') {
+    formData.partitionColumn = ''
+  }
+
+  const currentList = type === 'source' ? sourceList.value : targetList.value
+  const sourceItem = currentList.find(s => s.value == dataSourceId)
+
+  if (sourceItem) {
     dataSyncTableRef.value.getTableColumnData({
-        dataSourceId: dataSourceId,
-        tableName: e
+      dataSourceName: sourceItem.label,  // 传数据源名称
+      tableName: e
     }, type)
+  }
 }
 
 // 级联控制

@@ -47,7 +47,7 @@ function getLogData(id: string) {
     logType: 'running'
   }).then((res: any) => {
     console.log('运行日志响应:', res)
-    logMsg.value = res.data?.runningLog || res.data?.log || ''
+    logMsg.value = res.data?.logs?.runningLog || res.data?.runningLog || res.data?.log || ''
     loading.value = false
   }).catch((err) => {
     console.error('获取运行日志失败:', err)

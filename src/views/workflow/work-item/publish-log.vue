@@ -63,7 +63,7 @@ function getLogData(id: string) {
         console.log('获取日志响应:', res)
 
         // ✅ 正确提取日志内容
-        const submitLog = res.data?.submitLog || res.data?.log || ''
+        const submitLog = res.data?.logs?.submitLog || res.data?.submitLog || res.data?.log || ''
         logMsg.value = submitLog
 
         const currentStatus = res.data?.status || 'PENDING'
