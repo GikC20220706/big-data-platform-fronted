@@ -143,8 +143,11 @@ function getTargetTableColumn() {
     return targetTableColumn.value
 }
 function getConnect() {
-    getLinkData()
-    return connectNodeList.value
+  getLinkData()
+
+  console.log('🔗 获取连线数据:', connectNodeList.value)
+
+  return connectNodeList.value
 }
 
 // 初始化数据
@@ -283,80 +286,198 @@ const initJsPlumb = () => {
 }
 
 function getLinkData() {
-    const connectList: connect[] = []
-    instance.getConnections().forEach((con: any) => {
+  if (!instance) {
+    console.warn('jsPlumb实例未初始化')
+    return
+  }
+
+  const connectList: connect[] = []
+  const connections = instance.getConnections()
+
+  console.log('📊 jsPlumb连接数:', connections.length)
+
+  connections.forEach((con: any) => {
+    try {
+      const sourceClasses = con.source.className.split(' ')
+      const targetClasses = con.target.className.split(' ')
+
+      const sourceClass = sourceClasses.find((cls: string) => cls.includes('code-source-'))
+      const targetClass = targetClasses.find((cls: string) => cls.includes('code-target-'))
+
+      if (sourceClass && targetClass) {
         const conItem = {
-            source: con.source.className.split(' ').filter((cls: string) => cls.match('code-source-'))[0].slice(12),
-            target: con.target.className.split(' ').filter((cls: string) => cls.match('code-target-'))[0].slice(12)
+          source: sourceClass.slice(12),  // 'code-source-'.length = 12
+          target: targetClass.slice(12)   // 'code-target-'.length = 12
         }
         connectList.push(conItem)
-    })
-    connectNodeList.value = connectList
+        console.log('✅ 连线:', conItem)
+      }
+    } catch (error) {
+      console.error('解析连线失败:', error, con)
+    }
+  })
+
+  connectNodeList.value = connectList
+  console.log('🔗 最终连线列表:', connectList)
 }
 
-// 设置默认连线
 function clickSelectLinkConnect(type: string) {
-    connectNodeList.value = []
-    instance.deleteEveryConnection()
-    if (['SameLine', 'SameName'].includes(type)) {
-        sourceTableColumn.value.forEach((column: any, index: number) => {
-            if (type === 'SameLine' && targetTableColumn.value[index]) {
-                connectNodeList.value.push({
-                    source: column.code,
-                    target: targetTableColumn.value[index].code
-                })
-            }
-            if (type === 'SameName' && targetTableColumn.value.find(c => c.code === column.code)) {
-                connectNodeList.value.push({
-                    source: column.code,
-                    target: column.code
-                })
-            }
-        })
-        setTimeout(() => {
-            connectNodeList.value.forEach((data: any) => {
-                instance.connect({
-                    source: document.querySelector(`.code-source-${data.source}`),
-                    target: document.querySelector(`.code-target-${data.target}`)
-                })
-            })
-        })
-    } else if (type === 'quitLine') {
-        instance.deleteEveryConnection()
-    } else if (type === 'resetLine') {
-        connectNodeList.value = connectCopy.value
-        setTimeout(() => {
-            connectNodeList.value.forEach((data: any) => {
-                instance.connect({
-                    source: document.querySelector(`.code-source-${data.source}`),
-                    target: document.querySelector(`.code-target-${data.target}`)
-                })
-            })
-        })
-    } else if (type === 'refrashCodes') {
-        connectNodeInit.value = connectCopy.value
-        connectNodeLoading.value = true
-        Promise.all([getTableColumnData({
-            dataSourceId: props.formData.sourceDBId,
-            tableName: props.formData.sourceTable
-        }, 'source', true),
-        getTableColumnData({
-            dataSourceId: props.formData.targetDBId,
-            tableName: props.formData.targetTable
-        }, 'target', true)]).then(() => {
-            connectNodeLoading.value = false
-            connectNodeInit.value.forEach((data: any) => {
-                instance.connect({
-                    source: document.querySelector(`.code-source-${data.source}`),
-                    target: document.querySelector(`.code-target-${data.target}`)
-                })
-            })
-        }).catch((err: any) => {
-            connectNodeLoading.value = false
-            console.error('请求失败', err)
-        })
+  // ✅ 先确保数组已初始化
+  if (!targetTableColumn.value) {
+    targetTableColumn.value = []
+  }
+  if (!sourceTableColumn.value) {
+    sourceTableColumn.value = []
+  }
+
+  connectNodeList.value = []
+
+  // ✅ 确保 instance 已初始化
+  if (!instance) {
+    ElMessage.warning('连线组件未初始化,请稍后重试')
+    return
+  }
+
+  instance.deleteEveryConnection()
+
+  if (['SameLine', 'SameName'].includes(type)) {
+    // ✅ 检查源字段是否为空
+    if (!sourceTableColumn.value || sourceTableColumn.value.length === 0) {
+      ElMessage.warning('请先选择源表并加载字段')
+      return
     }
+
+    // ✅ 如果目标字段为空,自动生成
+    if (targetTableColumn.value.length === 0 && sourceTableColumn.value.length > 0) {
+      ElMessage.info('目标表会自动创建,已生成同名字段映射')
+
+      // 自动生成目标字段(排除 dt 分区字段)
+      targetTableColumn.value = sourceTableColumn.value
+          .filter((col: any) => col.code.toLowerCase() !== 'dt')
+          .map((col: any) => ({
+            code: col.code,
+            type: col.type,
+            sql: ''
+          }))
+
+      // ✅ 等待 DOM 更新后再初始化连线
+      nextTick(() => {
+        initJsPlumb()
+
+        // 再次执行映射逻辑
+        setTimeout(() => {
+          executeMappingLogic(type)
+        }, 100)
+      })
+      return
+    }
+
+    executeMappingLogic(type)
+  } else if (type === 'quitLine') {
+    // 取消所有连线
+    instance.deleteEveryConnection()
+    connectNodeList.value = []
+  } else if (type === 'resetLine') {
+    // 重置为初始连线
+    connectNodeList.value = connectCopy.value || []
+    setTimeout(() => {
+      connectNodeList.value.forEach((data: any) => {
+        const sourceEl = document.querySelector(`.code-source-${data.source}`)
+        const targetEl = document.querySelector(`.code-target-${data.target}`)
+        if (sourceEl && targetEl) {
+          instance.connect({
+            source: sourceEl,
+            target: targetEl
+          })
+        }
+      })
+    })
+  } else if (type === 'refrashCodes') {
+    // ✅ 刷新字段:重新获取源表字段
+    if (!props.formData.sourceDBId || !props.formData.sourceTable) {
+      ElMessage.warning('请先选择数据源和表')
+      return
+    }
+
+    connectNodeLoading.value = true
+
+    getTableColumnData({
+      dataSourceName: props.formData.sourceDBId,
+      tableName: props.formData.sourceTable
+    }, 'source', true).then(() => {
+      connectNodeLoading.value = false
+      ElMessage.success('字段刷新成功')
+    }).catch(() => {
+      connectNodeLoading.value = false
+    })
+  }
 }
+
+// ✅ 抽取映射逻辑为单独的函数
+function executeMappingLogic(type: string) {
+  sourceTableColumn.value.forEach((column: any, index: number) => {
+    // 排除分区字段
+    if (column.code.toLowerCase() === 'dt') {
+      return
+    }
+
+    if (type === 'SameLine' && targetTableColumn.value[index]) {
+      connectNodeList.value.push({
+        source: column.code,
+        target: targetTableColumn.value[index].code
+      })
+    }
+    if (type === 'SameName') {
+      const targetCol = targetTableColumn.value.find((c: any) => c.code === column.code)
+      if (targetCol) {
+        connectNodeList.value.push({
+          source: column.code,
+          target: column.code
+        })
+      } else {
+        // 如果没找到同名字段,也添加到映射中(因为已经自动生成了)
+        connectNodeList.value.push({
+          source: column.code,
+          target: column.code
+        })
+      }
+    }
+  })
+
+  // ✅ 建立连线
+  setTimeout(() => {
+    connectNodeList.value.forEach((data: any) => {
+      const sourceEl = document.querySelector(`.code-source-${data.source}`)
+      const targetEl = document.querySelector(`.code-target-${data.target}`)
+
+      if (sourceEl && targetEl) {
+        instance.connect({
+          source: sourceEl,
+          target: targetEl
+        })
+      } else {
+        console.warn('找不到连线节点:', data)
+      }
+    })
+  }, 100)
+}
+
+// 清空目标字段
+function clearTargetColumns() {
+  targetTableColumn.value = []
+  instance.deleteEveryConnection()
+  connectNodeList.value = []
+}
+
+// 暴露方法
+defineExpose({
+  getSourceTableColumn,
+  getTargetTableColumn,
+  getConnect,
+  initPageData,
+  getTableColumnData,
+  clearTargetColumns  // ✅ 添加这个方法
+})
 
 // 删除来源编码
 function removeCode(cData: codeParam) {
@@ -413,14 +534,6 @@ onMounted(() => {
             })
         })
     });
-})
-
-defineExpose({
-    getTableColumnData,
-    getSourceTableColumn,
-    getTargetTableColumn,
-    getConnect,
-    initPageData
 })
 </script>
 

@@ -122,45 +122,81 @@
                             </el-form-item>
                         </el-form>
                     </el-card>
-                    <el-card class="box-card">
-                        <template #header>
-                            <div class="card-header">
-                                <span>数据去向</span>
-                            </div>
-                        </template>
-                        <el-form ref="form" label-position="left" label-width="70px" :model="formData" :rules="rules">
-                            <el-form-item prop="targetDBType" label="类型">
-                                <el-select v-model="formData.targetDBType" clearable filterable placeholder="请选择"
-                                    @change="dbTypeChange('target')">
-                                    <el-option v-for="item in typeList" :key="item.value" :label="item.label"
-                                        :value="item.value" />
-                                </el-select>
-                            </el-form-item>
-                            <el-form-item prop="targetDBId" label="数据源">
-                                <el-select v-model="formData.targetDBId" clearable filterable placeholder="请选择"
-                                    @visible-change="getDataSource($event, formData.targetDBType, 'target')"
-                                    @change="dbIdChange('target')">
-                                    <el-option v-for="item in targetList" :key="item.value" :label="item.label"
-                                        :value="item.value" />
-                                </el-select>
-                            </el-form-item>
-                            <el-form-item prop="targetTable" label="表">
-                                <el-select v-model="formData.targetTable" clearable filterable placeholder="请选择"
-                                    @visible-change="getDataSourceTable($event, formData.targetDBId, 'target')"
-                                    @change="tableChangeEvent($event, formData.targetDBId, 'target')">
-                                    <el-option v-for="item in targetTablesList" :key="item.value" :label="item.label"
-                                        :value="item.value" />
-                                </el-select>
-                                <!-- <el-button type="primary" link @click="createTableWork">生成建表作业</el-button> -->
-                            </el-form-item>
-                            <el-form-item prop="overMode" label="写入模式">
-                                <el-select v-model="formData.overMode" clearable filterable placeholder="请选择" @change="pageChangeEvent">
-                                    <el-option v-for="item in filteredOverModeList" :key="item.value" :label="item.label"
-                                        :value="item.value" />
-                                </el-select>
-                            </el-form-item>
-                        </el-form>
-                    </el-card>
+                  <el-card class="box-card">
+                    <template #header>
+                      <div class="card-header">数据去向</div>
+                    </template>
+
+                    <el-form :model="formData" label-width="70px" ref="form">
+                      <!-- 类型 -->
+                      <el-form-item prop="targetDBType" label="类型">
+                        <el-select
+                            v-model="formData.targetDBType"
+                            clearable
+                            filterable
+                            placeholder="请选择"
+                            @visible-change="getDataType($event, 'target')"
+                            @change="dbTypeChange('target')"
+                        >
+                          <el-option
+                              v-for="item in targetTypeList"
+                              :key="item.value"
+                              :label="item.label"
+                              :value="item.value"
+                          />
+                        </el-select>
+                      </el-form-item>
+
+                      <!-- 数据源 -->
+                      <el-form-item prop="targetDBId" label="数据源">
+                        <el-select
+                            v-model="formData.targetDBId"
+                            clearable
+                            filterable
+                            placeholder="请选择"
+                            @visible-change="getDataSource($event, formData.targetDBType, 'target')"
+                            @change="dbIdChange('target')"
+                        >
+                          <el-option
+                              v-for="item in targetList"
+                              :key="item.value"
+                              :label="item.label"
+                              :value="item.value"
+                          />
+                        </el-select>
+                      </el-form-item>
+
+                      <!-- 表名 - 改为输入框 -->
+                      <el-form-item prop="targetTable" label="表">
+                        <el-input
+                            v-model="formData.targetTable"
+                            placeholder="请输入目标表名(自动创建)"
+                            clearable
+                            @blur="targetTableInputChange"
+                        />
+                        <span style="color: #909399; font-size: 12px;">
+                目标表会自动创建,字段映射关系根据连线生成
+            </span>
+                      </el-form-item>
+
+                      <!-- 写入模式 -->
+                      <el-form-item prop="overMode" label="写入模式">
+                        <el-select
+                            v-model="formData.overMode"
+                            clearable
+                            filterable
+                            placeholder="请选择"
+                        >
+                          <el-option
+                              v-for="item in filteredOverModeList"
+                              :key="item.value"
+                              :label="item.label"
+                              :value="item.value"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-form>
+                  </el-card>
                 </div>
                 <data-sync-table ref="dataSyncTableRef" :formData="formData"></data-sync-table>
             </div>
@@ -233,6 +269,8 @@ const targetTablesList = ref<Option[]>([])
 const overModeList = ref<Option[]>(OverModeList)
 const partKeyList = ref<Option[]>([])       // 分区键
 const typeList = ref(DataSourceType);
+const sourceTypeList = ref<Option[]>([])
+const targetTypeList = ref<Option[]>([])
 const loading = ref<boolean>(false)
 const networkError = ref<boolean>(false)
 
@@ -296,27 +334,103 @@ function tabChangeEvent(e: string) {
   })
 }
 
+function getDataType(e: boolean, type: string) {
+  if (e) {
+    // ✅ 直接使用 DataSourceType,不需要额外请求
+    const options = DataSourceType.map((item: any) => {
+      return {
+        label: item.label,
+        value: item.value
+      }
+    })
+
+    if (type === 'source') {
+      sourceTypeList.value = options
+    } else if (type === 'target') {
+      targetTypeList.value = options
+    }
+
+    console.log(`${type} 数据源类型列表:`, options)
+  }
+}
+
 // 保存数据
 function saveData() {
-    btnLoadingConfig.saveLoading = true
-    SaveWorkItemConfig({
-        workId: formData.workId,
-        syncWorkConfig: {
-            ...formData,
-            sourceTableColumn: dataSyncTableRef.value.getSourceTableColumn(),
-            targetTableColumn: dataSyncTableRef.value.getTargetTableColumn(),
-            columnMap: dataSyncTableRef.value.getConnect()
-        }
-    }).then((res: any) => {
-        changeStatus.value = false
-        btnLoadingConfig.saveLoading = false
+  btnLoadingConfig.saveLoading = true
 
-        getDate()
-        ElMessage.success('保存成功')
-    }).catch(err => {
-        btnLoadingConfig.saveLoading = false
-        console.error(err)
+  if (!formData.sourceTable || !formData.targetTable) {
+    ElMessage.error('请输入源表和目标表名称')
+    btnLoadingConfig.saveLoading = false
+    return
+  }
+
+  // 强制获取最新的连线数据
+  const sourceColumns = dataSyncTableRef.value.getSourceTableColumn()
+  const targetColumns = dataSyncTableRef.value.getTargetTableColumn()
+  const columnMap = dataSyncTableRef.value.getConnect()
+
+  console.log('==== 开始保存 ====')
+  console.log('源字段数量:', sourceColumns.length)
+  console.log('目标字段数量:', targetColumns.length)
+  console.log('连线映射数量:', columnMap.length)
+  console.log('连线映射详细:', JSON.stringify(columnMap))
+
+  // 检查连线映射
+  if (!columnMap || columnMap.length === 0) {
+    ElMessage.error('请先建立字段映射关系(点击"同名映射"按钮)')
+    btnLoadingConfig.saveLoading = false
+    return
+  }
+
+  // 过滤掉分区字段
+  const filteredSourceColumns = sourceColumns.filter((col) => col.code.toLowerCase() !== 'dt')
+
+  // 如果目标字段为空,从映射生成
+  let filteredTargetColumns = targetColumns.filter((col) => col.code.toLowerCase() !== 'dt')
+  if (filteredTargetColumns.length === 0) {
+    filteredTargetColumns = columnMap.map((mapping) => {
+      const sourceCol = sourceColumns.find((col) => col.code === mapping.source)
+      return {
+        code: mapping.target,
+        type: sourceCol?.type || 'STRING',
+        sql: ''
+      }
     })
+    console.log('自动生成目标字段:', filteredTargetColumns)
+  }
+
+  const config = {
+    sourceType: formData.sourceDBType,
+    sourceId: formData.sourceDBId,
+    sourceTable: formData.sourceTable,
+    sourceColumns: filteredSourceColumns,
+    targetType: formData.targetDBType,
+    targetId: formData.targetDBId,
+    targetTable: formData.targetTable,
+    targetColumns: filteredTargetColumns,
+    columnMapping: columnMap,  // 注意这里是 columnMapping
+    whereCondition: formData.queryCondition || '',
+    partitionColumn: formData.partitionColumn || null,
+    syncMode: formData.overMode || 'replace',
+    autoCreateTable: true
+  }
+
+  console.log('完整配置对象:', JSON.stringify(config, null, 2))
+
+  SaveWorkItemConfig({
+    workId: formData.workId,
+    config: config
+  }).then((res) => {
+    console.log('保存成功,响应:', res)
+    changeStatus.value = false
+    btnLoadingConfig.saveLoading = false
+    ElMessage.success('保存成功')
+    getDate()
+  }).catch(err => {
+    console.error('保存失败:', err)
+    btnLoadingConfig.saveLoading = false
+    ElMessage.error('保存失败')
+  })
 }
 
 const filteredOverModeList = computed(() => {
@@ -327,98 +441,104 @@ const filteredOverModeList = computed(() => {
 })
 
 function getDate() {
-    loading.value = true
-    networkError.value = networkError.value || false
-    GetWorkItemConfig({
-        workId: props.workItemConfig.id
-    }).then((res: any) => {
-        networkError.value = false
-        if (res.data.syncWorkConfig) {
-            formData.sourceDBType = res.data.syncWorkConfig.sourceDBType
-            formData.sourceDBId = res.data.syncWorkConfig.sourceDBId
-            formData.sourceTable = res.data.syncWorkConfig.sourceTable
-            formData.queryCondition = res.data.syncWorkConfig.queryCondition
-            formData.partitionColumn = res.data.syncWorkConfig.partitionColumn
-            formData.targetDBType = res.data.syncWorkConfig.targetDBType
-            formData.targetDBId = res.data.syncWorkConfig.targetDBId
-            formData.targetTable = res.data.syncWorkConfig.targetTable
-            formData.overMode = res.data.syncWorkConfig.overMode
+  loading.value = true
+  networkError.value = false
 
-            nextTick(() => {
-                Promise.all([
-                    getDataSource(true, formData.sourceDBType, 'source'),
-                    getDataSource(true, formData.targetDBType, 'target'),
-                    getDataSourceTable(true, formData.sourceDBId, 'source'),
-                    getDataSourceTable(true, formData.targetDBId, 'target')
-                ]).then(() => {
-                    loading.value = false
-                }).catch((err: any) => {
-                    loading.value = false
-                    console.error('请求失败', err)
-                })
+  GetWorkItemConfig({
+    workId: props.workItemConfig.id
+  }).then((res: any) => {
+    networkError.value = false
 
-                dataSyncTableRef.value.initPageData(res.data.syncWorkConfig)
-                changeStatus.value = false
+    // ✅ 统一从 config 读取
+    if (res.data.config) {
+      const config = res.data.config
+
+      formData.sourceDBType = config.sourceType
+      formData.sourceDBId = config.sourceId
+      formData.sourceTable = config.sourceTable
+      formData.queryCondition = config.whereCondition || ''
+      formData.partitionColumn = config.partitionColumn || ''
+      formData.targetDBType = config.targetType
+      formData.targetDBId = config.targetId
+      formData.targetTable = config.targetTable
+      formData.overMode = config.syncMode || 'replace'
+
+      nextTick(() => {
+        Promise.all([
+          getDataSource(true, formData.sourceDBType, 'source'),
+          getDataSource(true, formData.targetDBType, 'target'),
+          getDataSourceTable(true, formData.sourceDBId, 'source'),
+          getDataSourceTable(true, formData.targetDBId, 'target')
+        ]).then(() => {
+          // ✅ 初始化字段映射
+          if (config.sourceColumns && config.columnMapping) {
+            dataSyncTableRef.value.initPageData({
+              sourceTableColumn: config.sourceColumns,
+              targetTableColumn: config.targetColumns || [],
+              columnMap: config.columnMapping
             })
-        } else {
-            loading.value = false
-        }
-    }).catch(err => {
-        loading.value = false
-        networkError.value = false
-        console.error(err)
-    })
+          }
+          loading.value = false
+        }).catch((err: any) => {
+          loading.value = false
+          console.error('加载失败', err)
+        })
+
+        changeStatus.value = false
+      })
+    } else {
+      loading.value = false
+    }
+  }).catch(err => {
+    loading.value = false
+    networkError.value = true
+    console.error(err)
+  })
 }
 // 运行
 function runWorkData() {
-    if (changeStatus.value) {
-        ElMessageBox.confirm('作业尚未保存，是否确定要运行作业？', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-        }).then(() => {
-            btnLoadingConfig.runningLoading = true
-            // 运行自动切换到提交日志
-            tabChangeEvent('PublishLog')
+  const executeRun = () => {
+    btnLoadingConfig.runningLoading = true
 
-            RunWorkItemConfig({
-                workId: props.workItemConfig.id
-            }).then((res: any) => {
-                instanceId.value = res.data.instanceId
-                ElMessage.success(res.msg)
-                nextTick(() => {
-                    containerInstanceRef.value.initData(instanceId.value)
-                })
-                btnLoadingConfig.runningLoading = false
-                nextTick(() => {
-                    changeCollapseUp()
-                })
-            }).catch(() => {
-                btnLoadingConfig.runningLoading = false
-            })
-        })
-    } else {
-        btnLoadingConfig.runningLoading = true
-        // 运行自动切换到提交日志
-        tabChangeEvent('PublishLog')
+    activeName.value = 'PublishLog'
+    currentTab.value = markRaw(PublishLog)
 
-        RunWorkItemConfig({
-            workId: props.workItemConfig.id
-        }).then((res: any) => {
-            instanceId.value = res.data.instanceId
-            ElMessage.success(res.msg)
-            nextTick(() => {
-                containerInstanceRef.value.initData(instanceId.value)
-            })
-            btnLoadingConfig.runningLoading = false
-            // initData(res.data.instanceId)
-            nextTick(() => {
-                changeCollapseUp()
-            })
-        }).catch(() => {
-            btnLoadingConfig.runningLoading = false
-        })
-    }
+    RunWorkItemConfig({
+      workId: props.workItemConfig.id
+    }).then((res: any) => {
+      btnLoadingConfig.runningLoading = false
+
+      // ✅ 设置实例ID
+      instanceId.value = res.data.workInstanceId
+
+      ElMessage.success('作业已提交运行')
+
+      // ✅ 等待DOM更新后初始化日志
+      nextTick(() => {
+        if (containerInstanceRef.value) {
+          containerInstanceRef.value.initData(instanceId.value)
+        }
+
+        // ✅ 展开日志面板
+        changeCollapseUp()
+      })
+    }).catch((err) => {
+      btnLoadingConfig.runningLoading = false
+      console.error('运行失败:', err)
+    })
+  }
+
+  if (changeStatus.value) {
+    ElMessageBox.confirm('作业尚未保存，是否确定要运行作业？', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }).then(() => {
+      executeRun()
+    })
+  } else {
+    executeRun()
+  }
 }
 // 终止
 function terWorkData() {
@@ -588,6 +708,13 @@ function showTableDetail(): void {
         ElMessage.warning('请选择数据源和表')
     }
 }
+// 目标表名输入变化
+function targetTableInputChange() {
+  if (formData.targetTable && formData.targetDBId) {
+    changeStatus.value = true
+    ElMessage.info('目标表会自动创建,请配置字段映射关系')
+  }
+}
 
 // 生成建表作业
 function createTableWork() {
@@ -601,65 +728,30 @@ function createTableWork() {
     })
 }
 
-// 分区键
-function getTableColumnData(params: TableDetailParam, type: string, onlyInit?: boolean) {
-  connectNodeLoading.value = true
-
-  // 先根据dataSourceId找到数据源名称
-  const sourceList = type === 'source'
-      ? props.formData.sourceDBId
-      : props.formData.targetDBId
-
-  // 使用数据源名称而不是ID
-  GetTableColumnsByTableId({
-    dataSourceId: sourceList,  // 这里需要传数据源名称
-    tableName: params.tableName
-  }).then((res: any) => {
-    connectNodeLoading.value = false
-
-    if (res.code === 200 && res.data) {
-      // 适配新的返回格式
-      const columns = res.data.columns || res.data.fields || []
-
-      const columnList = columns.map((column: any) => {
-        return {
-          code: column.name || column.column_name || column.field,
-          type: column.type || column.data_type || column.column_type,
-          sql: ''
-        }
-      })
-
-      if (type === 'source') {
-        sourceTableColumn.value = columnList
-      } else {
-        targetTableColumn.value = columnList
-      }
-
-      // 初始化连线
-      if (!onlyInit) {
-        initJsPlumb()
-      }
-    }
-  }).catch(err => {
-    connectNodeLoading.value = false
-    console.error('获取字段失败:', err)
-  })
-}
-
 function tableChangeEvent(e: string, dataSourceId: string, type: string) {
   changeStatus.value = true
+
   if (type === 'source') {
+    // 清空分区字段
     formData.partitionColumn = ''
-  }
 
-  const currentList = type === 'source' ? sourceList.value : targetList.value
-  const sourceItem = currentList.find(s => s.value == dataSourceId)
+    // 只有源表才需要获取字段结构
+    const currentList = sourceList.value
+    const sourceItem = currentList.find(s => s.value == dataSourceId)
 
-  if (sourceItem) {
-    dataSyncTableRef.value.getTableColumnData({
-      dataSourceName: sourceItem.label,  // 传数据源名称
-      tableName: e
-    }, type)
+    if (sourceItem) {
+      dataSyncTableRef.value.getTableColumnData({
+        dataSourceName: sourceItem.label,
+        tableName: e
+      }, type)
+    } else {
+      console.error('找不到数据源:', dataSourceId)
+    }
+  } else if (type === 'target') {
+    // 目标表输入框变化,不需要获取字段
+    // 目标表会自动创建,字段由连线映射生成
+    console.log('目标表:', e)
+    ElMessage.info('目标表会自动创建,字段将根据连线映射生成')
   }
 }
 
@@ -734,10 +826,15 @@ function pageChangeEvent() {
 }
 
 onMounted(() => {
-    formData.workId = props.workItemConfig.id
-    getDate()
-    activeName.value = 'PublishLog'
-    currentTab.value = markRaw(PublishLog)
+  formData.workId = props.workItemConfig.id
+
+  getDataType(true, 'source')
+  getDataType(true, 'target')
+
+  getDate()
+
+  activeName.value = 'PublishLog'
+  currentTab.value = markRaw(PublishLog)
 })
 </script>
 
