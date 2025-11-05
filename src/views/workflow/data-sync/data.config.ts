@@ -77,12 +77,6 @@ export const DataSourceType = [
   }
 ]
 export const OverModeList = [
-  {
-    label: '追加模式',
-    value: 'INTO',
-  },
-  {
-    label: '覆写模式',
-    value: 'OVERWRITE',
-  }
+  { label: '追加模式', value: 'append' },      // 改为 append
+  { label: '覆写模式', value: 'overwrite' },   // 改为 overwrite
 ]
