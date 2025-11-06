@@ -61,6 +61,7 @@
 import { ref, defineProps, onMounted, nextTick, watch } from 'vue'
 import { jsPlumb } from 'jsplumb'
 import { GetTableColumnsByTableId } from '@/services/data-sync.service'
+import { GetDatasourceList } from '@/services/datasource.service'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import AddCode from '../add-code/index.vue'
 import { useAuthStore } from "@/store/useAuth"
@@ -177,7 +178,7 @@ function getTableColumnData(params: any, type: string, onlyInit?: boolean) {
   http.request({
     method: 'get',
     url: `/api/v1/integration/sources/${encodeURIComponent(params.dataSourceName)}/tables/${params.tableName}/schema`,
-    params: {}
+    params: params.database ? { database: params.database } : {}
   }).then((res: any) => {
     connectNodeLoading.value = false
 
@@ -400,11 +401,21 @@ function clickSelectLinkConnect(type: string) {
     }
 
     connectNodeLoading.value = true
-
-    getTableColumnData({
-      dataSourceName: props.formData.sourceDBId,
-      tableName: props.formData.sourceTable
-    }, 'source', true).then(() => {
+    // 将ID映射为名称，并带上默认database
+    GetDatasourceList({ page_size: 100 }).then((listRes: any) => {
+      const all = listRes?.data?.sources || listRes?.data || []
+      const ds = all.find((s: any) => String(s.id) === String(props.formData.sourceDBId))
+      const sourceName = ds?.name || ds?.display_name || ds?.label
+      const database = ds?.database || (ds?.config ? ds.config.database : '')
+      if (!sourceName) {
+        throw new Error('未找到对应数据源名称')
+      }
+      return getTableColumnData({
+        dataSourceName: sourceName,
+        tableName: props.formData.sourceTable,
+        database
+      }, 'source', true)
+    }).then(() => {
       connectNodeLoading.value = false
       ElMessage.success('字段刷新成功')
     }).catch(() => {

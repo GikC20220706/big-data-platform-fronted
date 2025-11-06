@@ -6,7 +6,9 @@ interface SourceTablesParam {
 }
 
 interface TableDetailParam {
-    dataSourceId: string
+    dataSourceId?: string
+    dataSourceName?: string
+    database?: string
     tableName: string
 }
 
@@ -72,11 +74,34 @@ export function CreateTableWork(params: TableDetailParam): Promise<any> {
 
 // 作业流-数据同步-根据表获取字段
 export function GetTableColumnsByTableId(params: TableDetailParam): Promise<any> {
-    return http.request({
-        method: 'get',
-        url: `/api/v1/integration/sources/${params.dataSourceId}/tables/${params.tableName}/schema`,
-        params: {}
-    })
+    // 兼容：优先使用 name；若只有 id，则调用列表接口做一次映射
+    const buildRequest = (sourceName: string) => {
+        return http.request({
+            method: 'get',
+            url: `/api/v1/integration/sources/${encodeURIComponent(sourceName)}/tables/${encodeURIComponent(params.tableName)}/schema`,
+            params: params.database ? { database: params.database } : {}
+        })
+    }
+
+    if (params.dataSourceName) {
+        return buildRequest(params.dataSourceName)
+    }
+
+    if (params.dataSourceId) {
+        return http.request({
+            method: 'get',
+            url: '/api/v1/integration/sources',
+            params: { page: 1, page_size: 100 }
+        }).then((res: any) => {
+            const all = res?.data?.sources || res?.data || []
+            const ds = all.find((s: any) => String(s.id) === String(params.dataSourceId))
+            const name = ds?.name || ds?.display_name || ds?.label
+            const database = params.database ?? (ds?.database || (ds?.config ? ds.config.database : ''))
+            return buildRequest(name).then(r => r)
+        })
+    }
+
+    return Promise.reject(new Error('缺少 dataSourceName / dataSourceId'))
 }
 
 

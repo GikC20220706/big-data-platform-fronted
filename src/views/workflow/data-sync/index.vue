@@ -302,7 +302,8 @@ const formData = reactive({
     sourceTable: '',      // 来源数据库表名
     queryCondition: '',   // 来源数据库查询条件
     partitionColumn: '',  // 分区键
-
+    partitionValue: '',   // 分区值(可选,为空则自动生成日期)
+    partitionType: 'date',// 分区类型: date/custom
     targetDBType: '',     // 目标数据库类型
     targetDBId: '',       // 目标数据源
     targetTable: '',      // 目标数据库表名
@@ -695,6 +696,44 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
     ElMessage.error('获取表列表失败')
     return Promise.reject(err)
   }
+}
+
+// 获取分区键字段列表
+function getTableColumnData(e: boolean, dataSourceId: string, tableName: string) {
+  if (!e || !dataSourceId || !tableName) {
+    partKeyList.value = []
+    return
+  }
+
+  // 从数据源列表中查找数据源名称
+  const sourceItem = sourceList.value.find(s => s.value == dataSourceId)
+  if (!sourceItem) {
+    partKeyList.value = []
+    return
+  }
+
+  // 调用API获取字段列表
+  http.request({
+    method: 'get',
+    url: `/api/v1/integration/sources/${encodeURIComponent(sourceItem.label)}/tables/${encodeURIComponent(tableName)}/schema`,
+    params: {}
+  }).then((res: any) => {
+    if (res.code === 200 && res.data) {
+      const columns = res.data.columns || res.data.fields || []
+      partKeyList.value = columns.map((column: any) => {
+        return {
+          label: column.name,
+          value: column.name
+        }
+      })
+    } else {
+      partKeyList.value = []
+    }
+  }).catch(err => {
+    console.error('获取分区键字段失败:', err)
+    partKeyList.value = []
+    ElMessage.error('获取分区键字段失败')
+  })
 }
 
 // 数据预览
