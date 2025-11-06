@@ -146,7 +146,6 @@ function getTargetTableColumn() {
 function getConnect() {
   getLinkData()
 
-  console.log('🔗 获取连线数据:', connectNodeList.value)
 
   return connectNodeList.value
 }
@@ -288,14 +287,11 @@ const initJsPlumb = () => {
 
 function getLinkData() {
   if (!instance) {
-    console.warn('jsPlumb实例未初始化')
     return
   }
 
   const connectList: connect[] = []
   const connections = instance.getConnections()
-
-  console.log('📊 jsPlumb连接数:', connections.length)
 
   connections.forEach((con: any) => {
     try {
@@ -311,7 +307,6 @@ function getLinkData() {
           target: targetClass.slice(12)   // 'code-target-'.length = 12
         }
         connectList.push(conItem)
-        console.log('✅ 连线:', conItem)
       }
     } catch (error) {
       console.error('解析连线失败:', error, con)
@@ -319,7 +314,6 @@ function getLinkData() {
   })
 
   connectNodeList.value = connectList
-  console.log('🔗 最终连线列表:', connectList)
 }
 
 function clickSelectLinkConnect(type: string) {
@@ -487,7 +481,7 @@ defineExpose({
   getConnect,
   initPageData,
   getTableColumnData,
-  clearTargetColumns  // ✅ 添加这个方法
+  clearTargetColumns
 })
 
 // 删除来源编码

@@ -292,8 +292,6 @@ function runWorkData() {
 }
 
 function executeRun() {
-  console.log('开始执行作业')
-  console.log('workType:', workConfig.workType)
 
   // 显示所有标签页
   tabList.forEach((item: any) => {
@@ -313,7 +311,6 @@ function executeRun() {
         runningLoading.value = false
 
         const workInstanceId = res.data?.workInstanceId || res.data
-        console.log('运行作业响应, instanceId:', workInstanceId)
 
         if (!workInstanceId || typeof workInstanceId !== 'string') {
           ElMessage.error('运行失败：未能获取作业实例ID')
@@ -322,20 +319,12 @@ function executeRun() {
 
         // 保存实例ID到组件状态
         instanceId.value = workInstanceId
-        console.log('保存instanceId:', instanceId.value)
 
         nextTick(() => {
           // 初始化提交日志组件
           if (containerInstanceRef.value && containerInstanceRef.value.initData) {
-            console.log('初始化提交日志组件')
             containerInstanceRef.value.initData(workInstanceId, (status: string) => {
-              console.log('作业执行完成，状态:', status)
-              console.log('当前保存的instanceId:', instanceId.value)
-
               // 执行成功后不自动切换，让用户手动切换
-              if (status === 'SUCCESS') {
-                console.log('执行成功，用户可以手动切换到运行结果查看')
-              }
             })
           }
         })
@@ -384,16 +373,12 @@ function saveData() {
     // ✅ 获取原配置
     const originalConfig = workConfig.value.config || {}
 
-    console.log('保存前的原配置:', originalConfig)
-    console.log('保存前的SQL:', sqltextData.value)
 
     // JDBC类：保留所有原配置，只更新SQL
     configData = {
       ...originalConfig,  // 保留所有原有配置（包括dataSourceId）
       sql: sqltextData.value.trim()  // 更新SQL
     }
-
-    console.log('准备保存的配置:', configData)
   } else if (['SPARK_SQL', 'FLINK_SQL'].includes(workConfig.value.workType)) {
     const originalConfig = workConfig.value.config || {}
     configData = {
@@ -431,21 +416,16 @@ function saveData() {
       configData.type = workConfig.value.workType === 'EXE_JDBC' ? 'execute' : 'query'
     }
   }
-
-  console.log('最终保存的配置:', configData)
-
   SaveWorkItemConfig({
     workId: props.workItemConfig.id,
     config: configData
   }).then((res: any) => {
-    console.log('保存响应:', res)
     ElMessage.success(res.msg || '保存成功')
     saveLoading.value = false
     changeStatus.value = false
 
     // 重新加载配置以验证
     initData().then(() => {
-      console.log('重新加载后的配置:', workConfig.value.config)
     })
   }).catch((err) => {
     console.error('保存失败:', err)
@@ -503,12 +483,8 @@ function changeCollapseUp(e: any) {
 }
 
 function tabChangeEvent(e: any) {
-  console.log('切换标签页:', e)
-  console.log('当前instanceId:', instanceId.value)
-
   // 检查instanceId是否有效
   if (!instanceId.value || instanceId.value === 'undefined') {
-    console.error('instanceId无效，无法切换标签页')
     return
   }
 
@@ -529,7 +505,6 @@ function tabChangeEvent(e: any) {
   nextTick(() => {
     setTimeout(() => {
       if (containerInstanceRef.value && containerInstanceRef.value.initData) {
-        console.log('初始化组件，使用instanceId:', currentInstanceId)
         containerInstanceRef.value.initData(currentInstanceId)
       }
     }, 100)

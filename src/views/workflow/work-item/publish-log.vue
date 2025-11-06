@@ -28,7 +28,6 @@ const callback = ref<any>()
 const loading = ref<boolean>(false)
 
 function initData(id: string, cb: any): void {
-  console.log('提交日志初始化, instanceId:', id)
   runId.value = id
   callback.value = cb
   loading.value = true
@@ -60,14 +59,12 @@ function getLogData(id: string) {
     logType: 'submit'
   })
       .then((res: any) => {
-        console.log('获取日志响应:', res)
 
         // ✅ 正确提取日志内容
         const submitLog = res.data?.logs?.submitLog || res.data?.submitLog || res.data?.log || ''
         logMsg.value = submitLog
 
         const currentStatus = res.data?.status || 'PENDING'
-        console.log('当前状态:', currentStatus, '日志长度:', submitLog.length)
 
         // 判断是否完成
         status.value = ['FAIL', 'SUCCESS', 'ABORT'].includes(currentStatus)
@@ -90,7 +87,6 @@ function getLogData(id: string) {
         }, 300)
       })
       .catch((err: any) => {
-        console.error('获取日志失败:', err)
         logMsg.value = ''
         setTimeout(() => {
           loading.value = false

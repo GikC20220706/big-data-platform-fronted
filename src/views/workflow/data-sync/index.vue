@@ -337,7 +337,6 @@ function tabChangeEvent(e: string) {
 
 function getDataType(e: boolean, type: string) {
   if (e) {
-    // ✅ 直接使用 DataSourceType,不需要额外请求
     const options = DataSourceType.map((item: any) => {
       return {
         label: item.label,
@@ -350,12 +349,9 @@ function getDataType(e: boolean, type: string) {
     } else if (type === 'target') {
       targetTypeList.value = options
     }
-
-    console.log(`${type} 数据源类型列表:`, options)
   }
 }
 
-// 保存数据
 function saveData() {
   btnLoadingConfig.saveLoading = true
 
@@ -365,39 +361,67 @@ function saveData() {
     return
   }
 
-  // 强制获取最新的连线数据
   const sourceColumns = dataSyncTableRef.value.getSourceTableColumn()
   const targetColumns = dataSyncTableRef.value.getTargetTableColumn()
   const columnMap = dataSyncTableRef.value.getConnect()
-
-  console.log('==== 开始保存 ====')
-  console.log('源字段数量:', sourceColumns.length)
-  console.log('目标字段数量:', targetColumns.length)
-  console.log('连线映射数量:', columnMap.length)
-  console.log('连线映射详细:', JSON.stringify(columnMap))
-
-  // 检查连线映射
   if (!columnMap || columnMap.length === 0) {
-    ElMessage.error('请先建立字段映射关系(点击"同名映射"按钮)')
+    ElMessage.error('请先建立字段映射关系')
     btnLoadingConfig.saveLoading = false
     return
   }
 
-  // 过滤掉分区字段
-  const filteredSourceColumns = sourceColumns.filter((col) => col.code.toLowerCase() !== 'dt')
+  const commonPartitionFields = ['dt', 'partition_date', 'ds', 'date']
 
-  // 如果目标字段为空,从映射生成
-  let filteredTargetColumns = targetColumns.filter((col) => col.code.toLowerCase() !== 'dt')
+  // 自动检测分区字段
+  let detectedPartitionField = formData.partitionColumn?.toLowerCase() || null
+
+  if (!detectedPartitionField) {
+    // 如果用户没选,从目标字段中自动检测
+    for (const field of commonPartitionFields) {
+      if (targetColumns.some(col => col.code.toLowerCase() === field)) {
+        detectedPartitionField = field
+        break
+      }
+    }
+  }
+
+  // 1. 源字段: 如果有分区字段,过滤掉(源表没有)
+  let filteredSourceColumns = sourceColumns
+  if (detectedPartitionField) {
+    filteredSourceColumns = sourceColumns.filter((col) =>
+        col.code.toLowerCase() !== detectedPartitionField
+    )
+  }
+
+  // 2. 目标字段: 保留所有字段(包括分区字段)
+  let filteredTargetColumns = [...targetColumns]
+
+  // 3. 如果目标字段为空,从映射生成
   if (filteredTargetColumns.length === 0) {
     filteredTargetColumns = columnMap.map((mapping) => {
       const sourceCol = sourceColumns.find((col) => col.code === mapping.source)
       return {
         code: mapping.target,
-        type: sourceCol?.type || 'STRING',
+        type: sourceCol?.type || 'TEXT',
         sql: ''
       }
     })
-    console.log('自动生成目标字段:', filteredTargetColumns)
+  }
+
+  // 4. 确保分区字段在目标字段中
+  if (detectedPartitionField) {
+    const hasPartition = filteredTargetColumns.some(
+        col => col.code.toLowerCase() === detectedPartitionField
+    )
+
+    if (!hasPartition) {
+      const partitionType = formData.partitionType === 'date' ? 'DATE' : 'VARCHAR(50)'
+      filteredTargetColumns.push({
+        code: detectedPartitionField,
+        type: partitionType,
+        sql: ''
+      })
+    }
   }
 
   const config = {
@@ -409,20 +433,18 @@ function saveData() {
     targetId: formData.targetDBId,
     targetTable: formData.targetTable,
     targetColumns: filteredTargetColumns,
-    columnMapping: columnMap,  // 注意这里是 columnMapping
+    columnMapping: columnMap,
     whereCondition: formData.queryCondition || '',
-    partitionColumn: formData.partitionColumn || null,
-    syncMode: formData.overMode || 'replace',
+    partitionColumn: detectedPartitionField || formData.partitionColumn || null,
+    partitionType: formData.partitionType || 'date',
+    syncMode: formData.overMode || 'append',
     autoCreateTable: true
   }
-
-  console.log('完整配置对象:', JSON.stringify(config, null, 2))
 
   SaveWorkItemConfig({
     workId: formData.workId,
     config: config
   }).then((res) => {
-    console.log('保存成功,响应:', res)
     changeStatus.value = false
     btnLoadingConfig.saveLoading = false
     ElMessage.success('保存成功')
@@ -450,7 +472,6 @@ function getDate() {
   }).then((res: any) => {
     networkError.value = false
 
-    // ✅ 统一从 config 读取
     if (res.data.config) {
       const config = res.data.config
 
@@ -636,7 +657,6 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
   }
 
   try {
-    console.log('getDataSourceTable 被调用:', { dataSourceId, type })
 
     // 获取当前数据源列表和类型
     let currentList = type === 'source' ? sourceList.value : targetList.value
@@ -644,18 +664,12 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
 
     // 如果数据源列表为空,先加载
     if (currentList.length === 0 && dbType) {
-      console.log('数据源列表为空,先加载数据源...')
       await getDataSource(true, dbType, type)
       // 重新获取列表
       currentList = type === 'source' ? sourceList.value : targetList.value
     }
-
-    console.log('当前数据源列表:', currentList)
-
     // 根据ID查找数据源
     const sourceItem = currentList.find(s => s.value == dataSourceId)
-
-    console.log('找到的数据源:', sourceItem)
 
     if (!sourceItem) {
       console.error('找不到数据源,ID:', dataSourceId)
@@ -683,7 +697,6 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
       })
 
       type === 'source' ? sourceTablesList.value = options : targetTablesList.value = options
-      console.log('成功加载表列表:', options.length, '张表')
       return Promise.resolve(options)
     } else {
       type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
@@ -691,7 +704,6 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
     }
 
   } catch (err) {
-    console.error('获取表列表失败:', err)
     type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
     ElMessage.error('获取表列表失败')
     return Promise.reject(err)
@@ -730,7 +742,6 @@ function getTableColumnData(e: boolean, dataSourceId: string, tableName: string)
       partKeyList.value = []
     }
   }).catch(err => {
-    console.error('获取分区键字段失败:', err)
     partKeyList.value = []
     ElMessage.error('获取分区键字段失败')
   })
@@ -789,7 +800,6 @@ function tableChangeEvent(e: string, dataSourceId: string, type: string) {
   } else if (type === 'target') {
     // 目标表输入框变化,不需要获取字段
     // 目标表会自动创建,字段由连线映射生成
-    console.log('目标表:', e)
     ElMessage.info('目标表会自动创建,字段将根据连线映射生成')
   }
 }
