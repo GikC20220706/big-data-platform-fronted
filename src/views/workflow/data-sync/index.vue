@@ -114,12 +114,12 @@
                                         :value="item.value" />
                                 </el-select>
                             </el-form-item>
-                            <el-form-item prop="queryCondition" label="过滤条件">
-                                 <el-tooltip content="例如：age > 12 and username = 'zhangsan'，不需要填写where" placement="top">
-                                    <el-icon style="left: -20px" class="tooltip-msg"><QuestionFilled /></el-icon>
-                                </el-tooltip>
-                                <code-mirror v-model="formData.queryCondition" basic :lang="lang" @change="pageChangeEvent" />
-                            </el-form-item>
+<!--                            <el-form-item prop="queryCondition" label="过滤条件">-->
+<!--                                 <el-tooltip content="例如：age > 12 and username = 'zhangsan'，不需要填写where" placement="top">-->
+<!--                                    <el-icon style="left: -20px" class="tooltip-msg"><QuestionFilled /></el-icon>-->
+<!--                                </el-tooltip>-->
+<!--                                <code-mirror v-model="formData.queryCondition" basic :lang="lang" @change="pageChangeEvent" />-->
+<!--                            </el-form-item>-->
                         </el-form>
                     </el-card>
                   <el-card class="box-card">
@@ -194,6 +194,9 @@
                               :value="item.value"
                           />
                         </el-select>
+                        <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                          {{ writeModeDescription }}
+                        </div>
                       </el-form-item>
                     </el-form>
                   </el-card>
@@ -244,6 +247,11 @@ import RunningLog from '../work-item/running-log.vue'
 import { Loading } from '@element-plus/icons-vue'
 import LoadingPage from '@/components/loading/index.vue'
 import { http } from '@/utils/http'
+import {
+  getWriteModeConfig,
+  supportsWriteMode,
+  getDefaultWriteMode
+} from '@/config/datasource-capabilities'
 
 interface Option {
     label: string
@@ -300,7 +308,7 @@ const formData = reactive({
     sourceDBType: '',     // 来源数据源类型
     sourceDBId: '',       // 来源数据源
     sourceTable: '',      // 来源数据库表名
-    queryCondition: '',   // 来源数据库查询条件
+    // queryCondition: '',   // 来源数据库查询条件
     partitionColumn: '',  // 分区键
     partitionValue: '',   // 分区值(可选,为空则自动生成日期)
     partitionType: 'date',// 分区类型: date/custom
@@ -434,7 +442,7 @@ function saveData() {
     targetTable: formData.targetTable,
     targetColumns: filteredTargetColumns,
     columnMapping: columnMap,
-    whereCondition: formData.queryCondition || '',
+    // whereCondition: formData.queryCondition || '',
     partitionColumn: detectedPartitionField || formData.partitionColumn || null,
     partitionType: formData.partitionType || 'date',
     syncMode: formData.overMode || 'append',
@@ -456,11 +464,34 @@ function saveData() {
   })
 }
 
+// 计算可用的写入模式列表
 const filteredOverModeList = computed(() => {
-    if (formData.targetDBType === 'CLICKHOUSE') {
-        return overModeList.value.filter(item => item.value === 'INTO')
-    }
+  if (!formData.targetDBType) {
     return overModeList.value
+  }
+
+  const config = getWriteModeConfig(formData.targetDBType)
+
+  // 根据配置过滤可用模式
+  return overModeList.value.filter(item =>
+      config.supportedModes.includes(item.value as 'append' | 'overwrite')
+  )
+})
+
+const writeModeDescription = computed(() => {
+  if (!formData.targetDBType) {
+    return '请先选择目标数据源'
+  }
+
+  const config = getWriteModeConfig(formData.targetDBType)
+
+  if (!formData.overMode) {
+    return `支持: ${config.supportedModes.map(m =>
+        config.description[m]
+    ).join(' | ')}`
+  }
+
+  return config.description[formData.overMode as 'append' | 'overwrite'] || ''
 })
 
 function getDate() {
@@ -478,7 +509,7 @@ function getDate() {
       formData.sourceDBType = config.sourceType
       formData.sourceDBId = config.sourceId
       formData.sourceTable = config.sourceTable
-      formData.queryCondition = config.whereCondition || ''
+      // formData.queryCondition = config.whereCondition || ''
       formData.partitionColumn = config.partitionColumn || ''
       formData.targetDBType = config.targetType
       formData.targetDBId = config.targetId
@@ -657,20 +688,18 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
   }
 
   try {
-
     // 获取当前数据源列表和类型
     let currentList = type === 'source' ? sourceList.value : targetList.value
     const dbType = type === 'source' ? formData.sourceDBType : formData.targetDBType
-
     // 如果数据源列表为空,先加载
     if (currentList.length === 0 && dbType) {
       await getDataSource(true, dbType, type)
       // 重新获取列表
       currentList = type === 'source' ? sourceList.value : targetList.value
     }
+
     // 根据ID查找数据源
     const sourceItem = currentList.find(s => s.value == dataSourceId)
-
     if (!sourceItem) {
       console.error('找不到数据源,ID:', dataSourceId)
       ElMessage.warning('找不到对应的数据源')
@@ -679,24 +708,40 @@ async function getDataSourceTable(e: boolean, dataSourceId: string, type: string
     }
 
     // 使用数据源名称调用API获取表列表
+    const url = `/api/v1/integration/sources/${encodeURIComponent(sourceItem.label)}/tables`
     const response = await http.request({
       method: 'get',
-      url: `/api/v1/integration/sources/${encodeURIComponent(sourceItem.label)}/tables`,
+      url: url,
       params: {
         limit: 1000,
         offset: 0
       }
     })
+    if (response.code === 200 && response.data) {
+      // ✅ 兼容不同的响应格式
+      const tables = response.data.tables || response.data || []
 
-    if (response.code === 200 && response.data && response.data.tables) {
-      const options = response.data.tables.map((item: any) => {
+      if (tables.length === 0) {
+        ElMessage.warning('该数据源下没有表')
+      }
+
+      const options = tables.map((item: any) => {
+        // 兼容不同的字段名
+        const tableName = item.table_name || item.name || item
         return {
-          label: item.table_name,
-          value: item.table_name
+          label: tableName,
+          value: tableName
         }
       })
+      // ✅ 使用 nextTick 确保响应式更新
+      await nextTick()
 
-      type === 'source' ? sourceTablesList.value = options : targetTablesList.value = options
+      if (type === 'source') {
+        sourceTablesList.value = options
+      } else {
+        targetTablesList.value = options
+      }
+
       return Promise.resolve(options)
     } else {
       type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
@@ -748,15 +793,25 @@ function getTableColumnData(e: boolean, dataSourceId: string, tableName: string)
 }
 
 // 数据预览
+// 数据预览
 function showTableDetail(): void {
-    if (formData.sourceDBId && formData.sourceTable) {
-        tableDetailRef.value.showModal({
-            dataSourceId: formData.sourceDBId,
-            tableName: formData.sourceTable
-        })
-    } else {
-        ElMessage.warning('请选择数据源和表')
+  if (formData.sourceDBId && formData.sourceTable) {
+    // ✅ 需要传递数据源名称而不是ID
+    const sourceItem = sourceList.value.find(s => s.value == formData.sourceDBId)
+
+    if (!sourceItem) {
+      ElMessage.warning('找不到对应的数据源')
+      return
     }
+
+    tableDetailRef.value.showModal({
+      dataSourceId: formData.sourceDBId,
+      dataSourceName: sourceItem.label,
+      tableName: formData.sourceTable
+    })
+  } else {
+    ElMessage.warning('请选择数据源和表')
+  }
 }
 // 目标表名输入变化
 function targetTableInputChange() {
@@ -806,6 +861,20 @@ function tableChangeEvent(e: string, dataSourceId: string, type: string) {
 
 // 级联控制
 function dbTypeChange(type: string) {
+    if (type === 'target') {
+      // 自动设置默认写入模式
+      const defaultMode = getDefaultWriteMode(formData.targetDBType)
+
+      // 如果当前模式不被支持,切换到默认模式
+      if (!supportsWriteMode(formData.targetDBType, formData.overMode as any)) {
+        formData.overMode = defaultMode
+      }
+
+      // 清空相关选择
+      formData.targetDBId = ''
+      formData.targetTable = ''
+    }
+
     changeStatus.value = true
     if (type === 'source') {
         formData.sourceDBId = ''

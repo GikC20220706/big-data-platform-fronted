@@ -55,11 +55,31 @@ export function GetDataSourceTables(params: SourceTablesParam): Promise<any> {
 }
 
 // 作业流-数据同步-数据预览
+// 作业流-数据同步-数据预览
 export function GetSourceTablesDetail(params: TableDetailParam): Promise<any> {
+    // 使用新的预览接口
+    const sourceName = params.dataSourceName
+    const tableName = params.tableName
+    const database = params.database
+
+    if (!sourceName || !tableName) {
+        return Promise.reject(new Error('缺少数据源名称或表名'))
+    }
+
+    // 构建查询参数
+    const queryParams: any = {
+        table_name: tableName,
+        limit: 100  // 默认最多100条
+    }
+
+    if (database) {
+        queryParams.database = database
+    }
+
     return http.request({
-        method: 'post',
-        url: '/work/getDataSourceData',
-        params: params
+        method: 'get',
+        url: `/api/v1/integration/sources/${encodeURIComponent(sourceName)}/preview`,
+        params: queryParams
     })
 }
 

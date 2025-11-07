@@ -74,6 +74,10 @@ export const DataSourceType = [
   {
     label: 'OpenGauss',
     value: 'OPEN_GAUSS',
+  },
+  {
+    label: 'KingBase',
+    value: 'KINGBASE',
   }
 ]
 export const OverModeList = [
