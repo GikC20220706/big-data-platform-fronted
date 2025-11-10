@@ -247,7 +247,7 @@ function initData(tableLoading?: boolean, type?: string) {
         })
       } else {
         tableConfigWorkFlow.tableData = res.data.content
-        tableConfigWorkFlow.pagination.total = res.data.totalElements
+        tableConfigWorkFlow.pagination.total = res.data.total
       }
       loading.value = false
       tableConfigWorkFlow.loading = false
@@ -284,7 +284,7 @@ function initData(tableLoading?: boolean, type?: string) {
           })
         } else {
           tableConfig.tableData = res.data.content
-          tableConfig.pagination.total = res.data.totalElements
+          tableConfig.pagination.total = res.data.total
         }
         loading.value = false
         tableConfig.loading = false

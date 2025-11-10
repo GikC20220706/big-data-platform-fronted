@@ -295,17 +295,47 @@ function initCellList(data: any) {
 
 // 更新节点状态
 function updateFlowStatus(statusList: Array<any>, isRunning: boolean) {
-    runningStatus.value = isRunning
-    statusList.forEach((item: any) => {
-        const node = _Graph.getCellById(item.workId)
-        const data = node.getData()
-        node.setData({
-            ...data,
-            workInstanceId: item.workInstanceId,
-            status: item.runStatus,
-            isRunning: isRunning
-        })
+  console.log('===== updateFlowStatus 被调用 =====')
+  console.log('statusList:', statusList)
+  console.log('isRunning:', isRunning)
+
+  runningStatus.value = isRunning
+
+  if (!statusList || statusList.length === 0) {
+    console.warn('statusList 为空,无法更新节点状态')
+    return
+  }
+
+  statusList.forEach((item: any) => {
+    console.log('处理作业实例:', {
+      workId: item.workId,
+      workInstanceId: item.workInstanceId,
+      runStatus: item.runStatus,
+      status: item.status
     })
+
+    const node = _Graph.getCellById(item.workId)
+
+    if (!node) {
+      console.error(`找不到ID为 ${item.workId} 的节点`)
+      return
+    }
+
+    console.log(`找到节点 ${item.workId}, 当前数据:`, node.getData())
+
+    const data = node.getData()
+    const newData = {
+      ...data,
+      workInstanceId: item.workInstanceId,
+      status: item.runStatus || item.status,  // 兼容两种字段名
+      isRunning: isRunning
+    }
+
+    console.log(`更新节点 ${item.workId} 的数据:`, newData)
+    node.setData(newData)
+  })
+
+  console.log('===== updateFlowStatus 完成 =====')
 }
 
 // 设置是否隐藏网格以及工具---运行中

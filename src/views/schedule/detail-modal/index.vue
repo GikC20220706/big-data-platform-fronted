@@ -62,7 +62,7 @@ const modelConfig = reactive({
 
 function showModal(cb: () => void, data: any, type: string): void {
   callback.value = cb
-  info.value = data.id
+  info.value = data.instanceId || data.id
   modalType.value = type
 
   logMsg.value = ''

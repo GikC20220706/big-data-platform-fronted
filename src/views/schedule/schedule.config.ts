@@ -46,7 +46,7 @@ export const BreadCrumbList: Array<BreadCrumb> = [
 // 实例编码	作业	类型	状态	执行时间	结束时间	下次计划时间	操作
 export const colConfigs: colConfig[] = [
   {
-    prop: 'id',
+    prop: 'instanceId',  // 改为 instanceId
     title: '实例ID',
     minWidth: 180,
     showOverflowTooltip: true
@@ -162,7 +162,7 @@ export const colConfigsWorkflow: colConfig[] = [
   //   showOverflowTooltip: true
   // },
   {
-    prop: 'type',
+    prop: 'instanceType',
     title: '触发类型',
     minWidth: 110,
     customSlot: 'instanceTypeTag'
@@ -174,12 +174,12 @@ export const colConfigsWorkflow: colConfig[] = [
     customSlot: 'statusTag'
   },
   {
-    prop: 'startDateTime',
+    prop: 'execStartDateTime',
     title: '开始时间',
     minWidth: 140
   },
   {
-    prop: 'endDateTime',
+    prop: 'execEndDateTime',
     title: '结束时间',
     minWidth: 140
   },

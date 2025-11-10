@@ -1,12 +1,5 @@
-/*
- * @Author: fanciNate
- * @Date: 2023-04-26 17:01:16
- * @LastEditTime: 2023-05-03 21:36:23
- * @LastEditors: fanciNate
- * @Description: In User Settings Edit
- * @FilePath: /zqy-web/src/services/computer-group.service.ts
- */
 import { http } from '@/utils/http'
+
 interface SerchParams {
   page: number;
   pageSize: number;
@@ -26,81 +19,91 @@ interface workflowInstanceId {
 // 获取调度历史查询数据---作业实例
 export function GetScheduleList(params: SerchParams): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/queryInstance',
-    params: params
+    method: 'get',
+    url: '/api/v1/job-instance/work/list',
+    params: {
+      page: params.page,
+      pageSize: params.pageSize,
+      status: params.executeStatus || undefined
+    }
   })
 }
 
 // 获取调度历史查询数据---作业流实例
 export function GetScheduleWorkFlowList(params: SerchParams): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/queryWorkFlowInstances',
-    params: params
+    method: 'get',
+    url: '/api/v1/job-instance/workflow/list',
+    params: {
+      workflowId: params.workflowId || undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+      status: params.executeStatus || undefined
+    }
   })
 }
 
-// 获取调度历史查询数据---作业流实例
+// 获取调度历史查询数据---作业流实例详情
 export function GetScheduleDetail(params: workflowInstanceId): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getWorkflowInstance',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}`
   })
 }
 
 // 获取日志
 export function GetLogData(params: LogParam): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getSubmitLog',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/instance/${params.instanceId}/log`,
+    params: {
+      log_type: 'all'
+    }
   })
 }
 
-// 获取Yarn日志
+// 获取Yarn日志 (暂不支持)
 export function GetYarnLogData(params: LogParam): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getYarnLog',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/instance/${params.instanceId}/log`,
+    params: {
+      log_type: 'running'
+    }
   })
 }
 
-// 重新运行
+// 重新运行 (暂不支持)
 export function ReStartRunning(params: LogParam): Promise<any> {
   return http.request({
-    method: 'get',
-    url: '/vip/work-instance/restartInstance',
-    params: params
+    method: 'post',
+    url: '/api/v1/job-work/run',
+    data: {
+      workId: params.instanceId
+    }
   })
 }
 
 // 获取结果表
 export function GetResultData(params: LogParam): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getData',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/instance/${params.instanceId}`
   })
 }
 
-// 删除调度历史-作业
+// 删除调度历史-作业 (暂不支持)
 export function DeleteScheduleLog(params: LogParam): Promise<any> {
   return http.request({
-    method: 'get',
-    url: '/vip/work-instance/deleteInstance',
-    params: params
+    method: 'delete',
+    url: `/api/v1/job-instance/work/${params.instanceId}`
   })
 }
 
-// 删除调度历史-作业流
+// 删除调度历史-作业流 (暂不支持)
 export function DeleteWorkFlowScheduleLog(params: workflowInstanceId): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/vip/workflow-instance/deleteWorkflowInstance',
-    params: params
+    method: 'delete',
+    url: `/api/v1/job-instance/workflow/${params.workflowInstanceId}`
   })
 }
-

@@ -481,27 +481,26 @@ function deleteData(data: any) {
 
 // 运行作业流
 function runWorkFlowDataEvent() {
-    btnLoadingConfig.runningLoading = true
-    RunWorkflowData({
-        workflowId: workFlowData.value.id
-    })
-        .then((res: any) => {
-            workflowInstanceId.value = res.data
-            ElMessage.success(res.msg)
-            zqyFlowRef.value.hideGrid(true)
-            // 判断是否开始运行
-            runningStatus.value = true
+  btnLoadingConfig.runningLoading = true
+  RunWorkflowData({
+    workflowId: workFlowData.value.id
+  })
+      .then((res: any) => {
+        workflowInstanceId.value = res.data.workflowInstanceId  // 修改这里
+        ElMessage.success(res.msg)
+        zqyFlowRef.value.hideGrid(true)
+        runningStatus.value = true
+        queryRunWorkInstancesEvent()
+        if (!timer.value) {
+          timer.value = setInterval(() => {
             queryRunWorkInstancesEvent()
-            if (!timer.value) {
-                timer.value = setInterval(() => {
-                    queryRunWorkInstancesEvent()
-                }, 2000)
-            }
-            btnLoadingConfig.runningLoading = false
-        })
-        .catch(() => {
-            btnLoadingConfig.runningLoading = false
-        })
+          }, 2000)
+        }
+        btnLoadingConfig.runningLoading = false
+      })
+      .catch(() => {
+        btnLoadingConfig.runningLoading = false
+      })
 }
 // 重跑工作流
 function reRunWorkFlowDataEvent() {
@@ -529,25 +528,35 @@ function reRunWorkFlowDataEvent() {
 
 // 运行作业流后获取节点运行状态
 function queryRunWorkInstancesEvent() {
-    if (workflowInstanceId.value) {
-        QueryRunWorkInstances({
-            workflowInstanceId: workflowInstanceId.value
+  if (workflowInstanceId.value) {
+    QueryRunWorkInstances({
+      workflowInstanceId: workflowInstanceId.value
+    })
+        .then((res: any) => {
+          console.log('===== 查询工作流实例状态 =====')
+          console.log('完整响应:', res)
+          console.log('flowStatus:', res.data.flowStatus)
+          console.log('workInstances:', res.data.workInstances)
+
+          const statusList = ['SUCCESS', 'FAIL', 'ABORT']
+          if (statusList.includes(res.data.flowStatus)) {
+            clearInterval(timer.value)
+            timer.value = null
+            zqyFlowRef.value.hideGrid(false)
+            runningStatus.value = false
+          }
+
+          if (res.data.workInstances && res.data.workInstances.length > 0) {
+            console.log('准备更新节点状态, 作业实例数:', res.data.workInstances.length)
+            zqyFlowRef.value.updateFlowStatus(res.data.workInstances, runningStatus.value)
+          } else {
+            console.error('workInstances 为空或不存在!')
+          }
         })
-            .then((res: any) => {
-                const statusList = ['SUCCESS', 'FAIL', 'ABORT']
-                if (statusList.includes(res.data.flowStatus)) {
-                    clearInterval(timer.value)
-                    timer.value = null
-                    zqyFlowRef.value.hideGrid(false)
-                    // 这里关闭运行状态
-                    runningStatus.value = false
-                }
-                zqyFlowRef.value.updateFlowStatus(res.data.workInstances, runningStatus.value)
-            })
-            .catch(() => {})
-    } else {
-        // ElMessage.warning('请先运行作业流')
-    }
+        .catch((err) => {
+          console.error('查询工作流实例状态失败:', err)
+        })
+  }
 }
 
 // 添加作业

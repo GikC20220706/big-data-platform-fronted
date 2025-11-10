@@ -11,7 +11,13 @@
 import { reactive, ref, nextTick, onUnmounted } from 'vue'
 import ZqyFlow from '@/lib/packages/zqy-flow/flow.vue'
 import { GetScheduleDetail } from '@/services/schedule.service'
-import { BreakFlowData, QueryRunWorkInstances, RerunCurrentNodeFlowData, RunAfterFlowData } from '@/services/workflow.service';
+import {
+  BreakFlowData,
+  GetWorkflowData,
+  QueryRunWorkInstances,
+  RerunCurrentNodeFlowData,
+  RunAfterFlowData
+} from '@/services/workflow.service';
 import eventBus from '@/utils/eventBus'
 import zqyLog from '@/components/zqy-log/index.vue'
 import { ElMessage } from 'element-plus';
@@ -69,28 +75,38 @@ function showModal(data: any): void {
 }
 
 function initFlowData() {
-    workflowInstanceId.value = info.value.workflowInstanceId
-    GetScheduleDetail({
-        workflowInstanceId: info.value.workflowInstanceId
-    }).then((res: any) => {
-        if (res.data?.webConfig) {
-            zqyFlowRef.value.initCellList(JSON.parse(res.data.webConfig))
-            zqyFlowRef.value.hideGrid(true)
-            nextTick(() => {
-                zqyFlowRef.value.locationCenter()
+  workflowInstanceId.value = info.value.workflowInstanceId
 
-                // 判断是否开始运行
-                runningStatus.value = true
-                queryRunWorkInstancesEvent()
-                if (!timer.value) {
-                    timer.value = setInterval(() => {
-                        queryRunWorkInstancesEvent()
-                    }, 2000)
-                }
-            })
-        }
+  // 需要先获取工作流配置来得到webConfig
+  const workflowId = info.value.workflowId
+  if (workflowId) {
+    GetWorkflowData({
+      workflowId: workflowId
+    }).then((res: any) => {
+      if (res.data?.webConfig) {
+        zqyFlowRef.value.initCellList(res.data.webConfig)
+        zqyFlowRef.value.hideGrid(true)
+        nextTick(() => {
+          // 延迟一下确保画布渲染完成后再居中
+          setTimeout(() => {
+            zqyFlowRef.value.locationCenter()
+          }, 100)
+
+          // 判断是否开始运行
+          runningStatus.value = true
+          queryRunWorkInstancesEvent()
+          if (!timer.value) {
+            timer.value = setInterval(() => {
+              queryRunWorkInstancesEvent()
+            }, 2000)
+          }
+        })
+      }
     }).catch(() => {
     })
+  } else {
+    console.error('缺少workflowId,无法加载画布配置')
+  }
 }
 
 // 运行作业流后获取节点运行状态
