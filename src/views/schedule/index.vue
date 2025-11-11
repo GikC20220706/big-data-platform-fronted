@@ -223,11 +223,14 @@ const typeList = ref([
 ])
 const workFlowList = ref([])
 const workflowId = ref('')
+const workflowInstanceId = ref('')
 
 function initData(tableLoading?: boolean, type?: string) {
   loading.value = tableLoading ? false : true
   networkError.value = networkError.value || false
+
   if (tableType.value === 'workflow') {
+    // 作业流的逻辑保持不变
     GetScheduleWorkFlowList({
       page: tableConfigWorkFlow.pagination.currentPage - 1,
       pageSize: tableConfigWorkFlow.pagination.pageSize,
@@ -265,49 +268,59 @@ function initData(tableLoading?: boolean, type?: string) {
       timer.value = null
     })
   } else {
+    // ✅ 修复:作业的逻辑
     GetScheduleList({
       page: tableConfig.pagination.currentPage - 1,
       pageSize: tableConfig.pagination.pageSize,
       searchKeyWord: keyword.value,
-      executeStatus: executeStatus.value
-    })
-      .then((res: any) => {
-        if (type) {
-          res.data.content.forEach((item: any) => {
-            tableConfig.tableData.forEach((col: any) => {
-              if (item.id === col.id) {
-                col.status = item.status
-                col.planStartDateTime = item.planStartDateTime
-                col.nextPlanDateTime = item.nextPlanDateTime
-              }
-            })
-          })
-        } else {
-          tableConfig.tableData = res.data.content
-          tableConfig.pagination.total = res.data.total
-        }
-        loading.value = false
-        tableConfig.loading = false
-        networkError.value = false
-      })
-      .catch(() => {
-        tableConfig.tableData = []
-        tableConfig.pagination.total = 0
-        loading.value = false
-        tableConfig.loading = false
-        networkError.value = true
+      executeStatus: executeStatus.value,
+      workflowInstanceId: workflowInstanceId.value
+    }).then((res: any) => {
+      if (type) {
+        // ✅ 修复:使用正确的字段进行匹配
+        res.data.content.forEach((item: any) => {
+          tableConfig.tableData.forEach((col: any) => {
+            // ✅ 关键修复:使用 instanceId 字段匹配
+            const itemId = item.instanceId || item.id
+            const colId = col.instanceId || col.id
 
-        if (timer.value) {
-          clearInterval(timer.value)
-        }
-        timer.value = null
-      })
+            if (itemId === colId) {
+              // ✅ 只更新必要的字段,保留其他字段不变
+              col.status = item.status
+              col.execStartDateTime = item.execStartDateTime || col.execStartDateTime
+              col.execEndDateTime = item.execEndDateTime || col.execEndDateTime
+              col.planStartDateTime = item.planStartDateTime || col.planStartDateTime
+              col.nextPlanDateTime = item.nextPlanDateTime || col.nextPlanDateTime
+
+              // 添加调试日志(可选,部署时可删除)
+            }
+          })
+        })
+      } else {
+        tableConfig.tableData = res.data.content
+        tableConfig.pagination.total = res.data.total
+      }
+      loading.value = false
+      tableConfig.loading = false
+      networkError.value = false
+    }).catch(() => {
+      tableConfig.tableData = []
+      tableConfig.pagination.total = 0
+      loading.value = false
+      tableConfig.loading = false
+      networkError.value = true
+
+      if (timer.value) {
+        clearInterval(timer.value)
+      }
+      timer.value = null
+    })
   }
 }
-
 function changeTypeEvent() {
   keyword.value = ''
   workflowId.value = ''
+  workflowInstanceId.value = ''
   initPageTable()
 }
 
@@ -342,16 +355,26 @@ function showDetailModal(data: any, type: string) {
 }
 
 function retry(data: any) {
+  // 兼容多种字段名
+  const instanceId = data.instanceId || data.id
+
+  if (!instanceId) {
+    ElMessage.error('作业实例ID不存在')
+    console.error('retry函数接收到的data:', data)
+    return
+  }
+
   ReStartRunning({
-    instanceId: data.id
+    instanceId: instanceId
   })
-    .then((res: any) => {
-      ElMessage.success(res.msg)
-      initData()
-    })
-    .catch((error: any) => {
-      console.error(error)
-    })
+      .then((res: any) => {
+        ElMessage.success(res.msg || '作业已重新提交运行')
+        initData()
+      })
+      .catch((error: any) => {
+        console.error('重跑失败:', error)
+        ElMessage.error(error.response?.data?.detail || '重跑失败')
+      })
 }
 
 function stopWork(data: any) {
@@ -478,6 +501,7 @@ function formatSeconds(value: number) {
 function redirectWork(e: any) {
   tableType.value = 'work'
   keyword.value = e.workflowInstanceId
+  workflowInstanceId.value = e.workflowInstanceId
   workflowId.value = ''
 
   tableConfigWorkFlow.pagination.currentPage = 1
@@ -492,6 +516,7 @@ function backToWorkflowIns(e: any) {
   tableType.value = 'workflow'
   keyword.value = e.workflowInstanceId
   workflowId.value = ''
+  workflowInstanceId.value = ''
 
   tableConfigWorkFlow.pagination.currentPage = 1
   tableConfigWorkFlow.pagination.pageSize = 10

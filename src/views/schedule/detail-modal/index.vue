@@ -123,45 +123,110 @@ function getYarnLogData() {
 }
 
 // 获取结果
+// 获取结果
 function getResultDatalist() {
   loading.value = true
   tableConfig.loading = true
+
   GetResultData({
     instanceId: info.value
   })
-    .then((res: any) => {
-      jsonData.value = res.data.jsonData
-      strData.value = res.data.strData
+      .then((res: any) => {
+        console.log('运行结果响应:', res)
 
-      loading.value = false
+        loading.value = false
+        tableConfig.loading = false
 
-      const col = res.data.data.slice(0, 1)[0]
-      const tableData = res.data.data.slice(1, res.data.data.length)
-      tableConfig.colConfigs = col.map((colunm: any) => {
-        return {
-          prop: colunm,
-          title: colunm,
-          minWidth: 100,
-          showHeaderOverflow: true,
-          showOverflowTooltip: true
+        // 正确提取resultData
+        const resultData = res.data.resultData
+
+        console.log('resultData结构:', resultData)
+
+        // 处理空数据情况
+        if (!resultData) {
+          console.log('没有结果数据')
+          tableConfig.colConfigs = []
+          tableConfig.tableData = []
+          return
+        }
+
+        // 情况1: resultData直接包含columns和rows (JDBC查询结果)
+        if (resultData.columns && resultData.rows) {
+          const columns = resultData.columns
+          const rows = resultData.rows
+
+          console.log(`查询结果: 列数=${columns.length}, 行数=${rows.length}`)
+
+          // 构建表格列配置
+          tableConfig.colConfigs = columns.map((column: string) => ({
+            prop: column,
+            title: column,
+            minWidth: 120,
+            showHeaderOverflow: true,
+            showOverflowTooltip: true
+          }))
+
+          // 直接使用rows作为表格数据(已经是对象数组格式)
+          tableConfig.tableData = rows
+        }
+        // 情况2: resultData.data包含columns和rows
+        else if (resultData.data && resultData.data.columns && resultData.data.rows) {
+          const columns = resultData.data.columns
+          const rows = resultData.data.rows
+
+          console.log(`查询结果: 列数=${columns.length}, 行数=${rows.length}`)
+
+          tableConfig.colConfigs = columns.map((column: string) => ({
+            prop: column,
+            title: column,
+            minWidth: 120,
+            showHeaderOverflow: true,
+            showOverflowTooltip: true
+          }))
+
+          tableConfig.tableData = rows
+        }
+        // 情况3: resultData是数组(直接就是查询结果)
+        else if (Array.isArray(resultData) && resultData.length > 0) {
+          console.log('数组格式结果,行数=' + resultData.length)
+
+          // 从第一行数据提取列名
+          const columns = Object.keys(resultData[0])
+
+          tableConfig.colConfigs = columns.map((column: string) => ({
+            prop: column,
+            title: column,
+            minWidth: 120,
+            showHeaderOverflow: true,
+            showOverflowTooltip: true
+          }))
+
+          tableConfig.tableData = resultData
+        }
+        // 情况4: 字符串类型(脚本输出等)
+        else if (typeof resultData === 'string') {
+          console.log('字符串格式结果')
+          strData.value = resultData
+          jsonData.value = resultData
+          tableConfig.colConfigs = []
+          tableConfig.tableData = []
+        }
+        // 情况5: 其他对象类型,显示JSON
+        else {
+          console.log('JSON对象格式结果')
+          jsonData.value = JSON.stringify(resultData, null, 2)
+          strData.value = jsonData.value
+          tableConfig.colConfigs = []
+          tableConfig.tableData = []
         }
       })
-      tableConfig.tableData = tableData.map((columnData: any) => {
-        const dataObj: any = {
-        }
-        col.forEach((c: any, index: number) => {
-          dataObj[c] = columnData[index]
-        })
-        return dataObj
+      .catch((error) => {
+        console.error('获取结果数据失败:', error)
+        tableConfig.colConfigs = []
+        tableConfig.tableData = []
+        tableConfig.loading = false
+        loading.value = false
       })
-      tableConfig.loading = false
-    })
-    .catch(() => {
-      tableConfig.colConfigs = []
-      tableConfig.tableData = []
-      tableConfig.loading = false
-      loading.value = false
-    })
 }
 
 function closeEvent() {

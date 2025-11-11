@@ -271,39 +271,68 @@ const tabList = reactive([
     },
 ])
 function initData(id?: string, tableLoading?: boolean) {
-    loading.value = tableLoading ? false : true
-    networkError.value = networkError.value || false
-    GetWorkItemConfig({
-        workId: props.workItemConfig.id
-    })
-        .then((res: any) => {
-            workConfig = res.data
-            workConfig.workType = props.workItemConfig.workType
-            if (res.data.apiWorkConfig) {
-                Object.keys(apiWorkConfig).forEach((key: string) => {
-                    apiWorkConfig[key] = res.data.apiWorkConfig[key]
-                })
+  loading.value = tableLoading || false
+  networkError.value = false
+  GetWorkItemConfig({
+    workId: props.workItemConfig.id
+  }).then((res: any) => {
+    networkError.value = false
+
+    workConfig.workId = res.data.id
+    workConfig.workType = res.data.workType
+
+    // ✅ 从后端config中提取并转换数据
+    if (res.data.config) {
+      const config = res.data.config
+
+      // 转换基本字段
+      apiWorkConfig.requestUrl = config.url || ''
+      apiWorkConfig.requestType = config.method || 'GET'
+      apiWorkConfig.requestBody = config.body || ''
+
+      // 转换headers对象为数组
+      if (config.headers && typeof config.headers === 'object') {
+        apiWorkConfig.requestHeader = Object.entries(config.headers).map(([key, value]) => ({
+          label: key,
+          value: value as string
+        }))
+      } else {
+        apiWorkConfig.requestHeader = [{ label: '', value: '' }]
+      }
+
+      // 转换params对象为数组
+      if (config.params && typeof config.params === 'object') {
+        apiWorkConfig.requestParam = Object.entries(config.params).map(([key, value]) => ({
+          label: key,
+          value: value as string
+        }))
+      } else {
+        apiWorkConfig.requestParam = [{ label: '', value: '' }]
+      }
+    }
+
+    loading.value = false
+    changeStatus.value = false
+
+    // 如果有instanceId，加载日志
+    if (id) {
+      instanceId.value = id
+      containerInstanceRef.value.initData(id || instanceId.value, (status: string) => {
+        // ✅ 运行结束后，显示运行结果标签页
+        if (status === 'SUCCESS') {  // 只有成功时才显示运行结果
+          tabList.forEach((item: any) => {
+            if (item.code === 'ReturnData') {
+              item.hide = false
             }
-            nextTick(() => {
-                changeStatus.value = false
-                containerInstanceRef.value.initData(id || instanceId.value, (status: string) => {
-                    // 运行结束
-                    if (workConfig.workType === 'API') {
-                        tabList.forEach((item: any) => {
-                            if (['ReturnData'].includes(item.code)) {
-                                item.hide = false
-                            }
-                        })
-                    }
-                })
-            })
-            loading.value = false
-            networkError.value = false
-        })
-        .catch(() => {
-            loading.value = false
-            networkError.value = false
-        })
+          })
+        }
+      })
+    }
+  }).catch((err: any) => {
+    loading.value = false
+    networkError.value = true
+    console.error(err)
+  })
 }
 
 function tabChangeEvent(e: string) {
@@ -350,60 +379,63 @@ function locationNode() {
 
 // 运行
 function runWorkData() {
-    if (changeStatus.value) {
-        ElMessageBox.confirm('作业尚未保存，是否确定要运行作业？', '警告', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-        }).then(() => {
-            runningLoading.value = true
-            RunWorkItemConfig({
-                workId: props.workItemConfig.id
-            })
-                .then((res: any) => {
-                    runningLoading.value = false
-                    instanceId.value = res.data.instanceId
-                    ElMessage.success(res.msg)
-                    initData(res.data.instanceId, true)
+  const executeRun = () => {
+    runningLoading.value = true
 
-                    // 点击运行，默认跳转到提交日志tab
-                    activeName.value = 'PublishLog'
-                    currentTab.value = markRaw(PublishLog)
-                    nextTick(() => {
-                        changeCollapseUp()
-                    })
-                })
-                .catch(() => {
-                    runningLoading.value = false
-                })
-        })
-    } else {
-        tabList.forEach((item: any) => {
-            if (['RunningLog', 'TotalDetail', 'ReturnData'].includes(item.code)) {
-                item.hide = true
+    // 切换到提交日志tab
+    activeName.value = 'PublishLog'
+    currentTab.value = markRaw(PublishLog)
+
+    RunWorkItemConfig({
+      workId: props.workItemConfig.id
+    })
+        .then((res: any) => {
+          runningLoading.value = false
+
+          const workInstanceId = res.data?.workInstanceId || res.data?.instanceId
+
+          if (!workInstanceId) {
+            ElMessage.error('运行失败：未能获取作业实例ID')
+            return
+          }
+
+          instanceId.value = workInstanceId
+          ElMessage.success(res.msg || '作业已提交运行')
+
+          // ✅ 初始化日志组件，并在回调中显示运行结果
+          nextTick(() => {
+            if (containerInstanceRef.value && containerInstanceRef.value.initData) {
+              containerInstanceRef.value.initData(workInstanceId, (status: string) => {
+                // 执行成功后显示运行结果标签
+                if (status === 'SUCCESS') {
+                  tabList.forEach((item: any) => {
+                    if (item.code === 'ReturnData') {
+                      item.hide = false
+                    }
+                  })
+                }
+              })
             }
+            changeCollapseUp()
+          })
         })
-        runningLoading.value = true
-        RunWorkItemConfig({
-            workId: props.workItemConfig.id
+        .catch((err) => {
+          runningLoading.value = false
+          console.error('运行失败:', err)
         })
-            .then((res: any) => {
-                runningLoading.value = false
-                instanceId.value = res.data.instanceId
-                ElMessage.success(res.msg)
-                initData(res.data.instanceId, true)
+  }
 
-                // 点击运行，默认跳转到提交日志tab
-                activeName.value = 'PublishLog'
-                currentTab.value = markRaw(PublishLog)
-                nextTick(() => {
-                    changeCollapseUp()
-                })
-            })
-            .catch(() => {
-                runningLoading.value = false
-            })
-    }
+  if (changeStatus.value) {
+    ElMessageBox.confirm('作业尚未保存，是否确定要运行作业？', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }).then(() => {
+      executeRun()
+    })
+  } else {
+    executeRun()
+  }
 }
 
 // 终止
@@ -428,24 +460,54 @@ function terWorkData() {
 }
 
 // 保存配置
+// 保存配置
 function saveData() {
-    form.value?.validate((valid) => {
-        if (valid) {
-            saveLoading.value = true
-            SaveWorkItemConfig({
-                workId: props.workItemConfig.id,
-                apiWorkConfig: apiWorkConfig
-            }).then((res: any) => {
-                changeStatus.value = false
-                ElMessage.success(res.msg)
-                saveLoading.value = false
-            }).catch(() => {
-                saveLoading.value = false
-            })
-        } else {
-            ElMessage.warning('请将表单输入完整')
-        }
-    })
+  form.value?.validate((valid) => {
+    if (valid) {
+      saveLoading.value = true
+
+      // ✅ 转换字段名以匹配后端执行器期望的格式
+      const config = {
+        url: apiWorkConfig.requestUrl,  // requestUrl -> url
+        method: apiWorkConfig.requestType,  // requestType -> method
+        headers: {},  // 将数组转为对象
+        params: {},   // 将数组转为对象
+        body: apiWorkConfig.requestBody || '',
+        timeout: 30
+      }
+
+      // ✅ 转换请求头数组为对象
+      if (apiWorkConfig.requestHeader && apiWorkConfig.requestHeader.length > 0) {
+        apiWorkConfig.requestHeader.forEach((item: any) => {
+          if (item.label && item.value) {
+            config.headers[item.label] = item.value
+          }
+        })
+      }
+
+      // ✅ 转换请求参数数组为对象
+      if (apiWorkConfig.requestParam && apiWorkConfig.requestParam.length > 0) {
+        apiWorkConfig.requestParam.forEach((item: any) => {
+          if (item.label && item.value) {
+            config.params[item.label] = item.value
+          }
+        })
+      }
+
+      SaveWorkItemConfig({
+        workId: props.workItemConfig.id,
+        config: config  // 使用转换后的config
+      }).then((res: any) => {
+        changeStatus.value = false
+        ElMessage.success(res.msg)
+        saveLoading.value = false
+      }).catch(() => {
+        saveLoading.value = false
+      })
+    } else {
+      ElMessage.warning('请将表单输入完整')
+    }
+  })
 }
 
 // 发布

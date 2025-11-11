@@ -6,6 +6,7 @@ interface SerchParams {
   searchKeyWord: string;
   executeStatus: string
   workflowId?: string
+  workflowInstanceId?: string
 }
 
 interface LogParam {
@@ -24,7 +25,8 @@ export function GetScheduleList(params: SerchParams): Promise<any> {
     params: {
       page: params.page,
       pageSize: params.pageSize,
-      status: params.executeStatus || undefined
+      status: params.executeStatus || undefined,
+      workflowInstanceId: params.workflowInstanceId || undefined
     }
   })
 }
@@ -73,14 +75,12 @@ export function GetYarnLogData(params: LogParam): Promise<any> {
   })
 }
 
-// 重新运行 (暂不支持)
+// 重新运行
 export function ReStartRunning(params: LogParam): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/api/v1/job-work/run',
-    data: {
-      workId: params.instanceId
-    }
+    url: `/api/v1/job-work/instance/${params.instanceId}/rerun`,
+    data: {}
   })
 }
 
