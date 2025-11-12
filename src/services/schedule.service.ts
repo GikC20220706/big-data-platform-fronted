@@ -92,18 +92,18 @@ export function GetResultData(params: LogParam): Promise<any> {
   })
 }
 
-// 删除调度历史-作业 (暂不支持)
+// 删除调度历史-作业
 export function DeleteScheduleLog(params: LogParam): Promise<any> {
   return http.request({
     method: 'delete',
-    url: `/api/v1/job-instance/work/${params.instanceId}`
+    url: `/api/v1/job-work/instance/${params.instanceId}`
   })
 }
 
-// 删除调度历史-作业流 (暂不支持)
+// 删除调度历史-作业流
 export function DeleteWorkFlowScheduleLog(params: workflowInstanceId): Promise<any> {
   return http.request({
     method: 'delete',
-    url: `/api/v1/job-instance/workflow/${params.workflowInstanceId}`
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}`
   })
 }

@@ -645,53 +645,96 @@ function getConfigDetailData() {
 }
 
 function okEvent() {
-  // 获取cron表达式
-  let status = true
-  const formArr = [dataSourceConfig, clusterConfigForm, cronConfigForm, syncRuleForm]
-  formArr.forEach(f => {
-    f.value?.validate((valid: boolean) => {
-      if (!valid) {
-        status = false
+  // 验证数据源配置（JDBC作业）
+  if (['QUERY_JDBC', 'PRQL', 'EXE_JDBC'].includes(workItemConfig.value.workType)) {
+    dataSourceConfig.value?.validate((valid) => {
+      if (valid) {
+        saveAllConfig()
+      } else {
+        ElMessage.warning('请选择数据源')
       }
     })
-  })
-  setTimeout(() => {
-    if (status) {
-      getCron()
-      const clusObj = clusterConfig
-      if (['SPARK_SQL'].includes(workItemConfig.value.workType)) {
-        dataSourceForm.datasourceId = clusObj.datasourceId
-        delete clusObj.datasourceId
-      }
-      const cron = `${state.secondsText || '*'} ${state.minutesText || '*'} ${state.hoursText || '*'} ${
-        state.daysText || '*'
-      } ${state.monthsText || '*'} ${state.weeksText || '?'} ${state.yearsText || '*'}`
-      SaveWorkItemConfig({
-        workId: workItemConfig.value.id,
-        datasourceId: dataSourceForm.datasourceId || undefined,
-        clusterConfig: clusObj,
-        cronConfig: {
-          ...cronConfig,
-          cron: cronConfig.setMode === 'SIMPLE' ? cron : cronConfig.cron
-        },
-        syncRule: syncRule,
-        ...fileConfig,
-        ...containerConfig,
-        ...messageConfig
-      }).then((res: any) => {
-        if (callback.value && callback.value instanceof Function) {
-          callback.value()
-        }
-        ElMessage.success('保存成功')
-        drawerConfig.visible = false;
-      }).catch(err => {
-        clusterConfig.datasourceId = dataSourceForm.datasourceId
-        console.error(err)
-      })
-    } else {
-      ElMessage.warning('请将表单输入完整')
+  } else {
+    saveAllConfig()
+  }
+}
+
+function saveAllConfig() {
+  drawerConfig.okConfig.loading = true
+
+  // ✅ 构建保存参数 - 注意字段名和数据类型
+  const saveParams: any = {
+    workId: workItemConfig.value.id
+  }
+
+  // 数据源ID（JDBC作业）
+  if (['QUERY_JDBC', 'PRQL', 'EXE_JDBC'].includes(workItemConfig.value.workType)) {
+    // ✅ 确保 datasourceId 是数字，不是数组
+    saveParams.datasourceId = typeof dataSourceForm.datasourceId === 'number'
+        ? dataSourceForm.datasourceId
+        : (Array.isArray(dataSourceForm.datasourceId) ? dataSourceForm.datasourceId[0] : parseInt(dataSourceForm.datasourceId))
+  }
+
+  // 调度配置
+  if (cronConfig.enable) {
+    saveParams.cronConfig = {
+      enable: cronConfig.enable,
+      setMode: cronConfig.setMode,
+      workDate: cronConfig.workDate,
+      cron: cronConfig.setMode === 'ADVANCE' ? cronConfig.cron : undefined,
+      range: cronConfig.setMode === 'SIMPLE' ? cronConfig.range : undefined,
+      // 简易模式的其他参数
+      startDateMin: cronConfig.startDateMin,
+      minNum: cronConfig.minNum,
+      endDateMin: cronConfig.endDateMin,
+      startDate: cronConfig.startDate,
+      hourNum: cronConfig.hourNum,
+      endDate: cronConfig.endDate,
+      scheduleDate: cronConfig.scheduleDate,
+      weekDate: cronConfig.weekDate,
+      monthDay: cronConfig.monthDay
     }
-  });
+  } else {
+    saveParams.cronConfig = { enable: false }
+  }
+
+  // 集群配置（Spark/Flink作业）
+  if (!['QUERY_JDBC', 'PRQL', 'EXE_JDBC', 'CURL', 'API'].includes(workItemConfig.value.workType)) {
+    saveParams.clusterConfig = {
+      setMode: clusterConfig.setMode,
+      resourceLevel: clusterConfig.resourceLevel,
+      clusterId: clusterConfig.clusterId,
+      clusterNodeId: clusterConfig.clusterNodeId,
+      enableHive: clusterConfig.enableHive,
+      datasourceId: clusterConfig.datasourceId,
+      sparkConfigJson: clusterConfig.sparkConfigJson,
+      flinkConfigJson: clusterConfig.flinkConfigJson
+    }
+  }
+
+  // 同步规则（数据同步作业）
+  if (['DATA_SYNC_JDBC'].includes(workItemConfig.value.workType)) {
+    saveParams.syncRule = {
+      setMode: syncRule.setMode,
+      numPartitions: syncRule.numPartitions,
+      numConcurrency: syncRule.numConcurrency,
+      sqlConfigJson: syncRule.sqlConfigJson
+    }
+  }
+
+  // 调用保存接口
+  SaveWorkItemConfig(saveParams).then((res: any) => {
+    ElMessage.success(res.msg || '保存成功')
+    drawerConfig.okConfig.loading = false
+    drawerConfig.visible = false
+    if (callback.value) {
+      callback.value()
+    }
+  }).catch((err: any) => {
+    console.error('保存配置失败:', err)
+    ElMessage.error(err.message || '保存失败')
+    drawerConfig.okConfig.loading = false
+  })
 }
 
 function closeEvent() {
@@ -782,8 +825,8 @@ function getClusterNodeList(e: boolean) {
 function getDataSourceList(e: boolean, searchType?: string) {
   if (e) {
     GetDatasourceList({
-      page: 0,
-      pageSize: 10000,
+      page: 1,
+      pageSize: 100,
       searchKeyWord: searchType || ''
     }).then((res: any) => {
       dataSourceList.value = res.data.content.map((item: any) => {

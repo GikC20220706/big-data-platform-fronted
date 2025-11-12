@@ -389,20 +389,25 @@ function stopWork(data: any) {
 }
 
 // 删除
+// 删除作业调度
 function deleteSchedule(data: any) {
   ElMessageBox.confirm('确定删除该调度历史吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
+    // ✅ 检查并打印参数
+    console.log('删除作业，数据:', data)
+    console.log('instanceId:', data.instanceId || data.workInstanceId || data.id)
+
     DeleteScheduleLog({
-      instanceId: data.id
+      instanceId: data.instanceId || data.workInstanceId || data.id  // ✅ 适配不同的字段名
     })
-      .then((res: any) => {
-        ElMessage.success(res.msg)
-        initData()
-      })
-      .catch(() => {})
+        .then((res: any) => {
+          ElMessage.success(res.msg || '删除成功')
+          initData()
+        })
+        .catch(() => {})
   })
 }
 
@@ -413,10 +418,13 @@ function deleteWorkflowSchedule(data: any) {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
+    console.log('删除工作流，数据:', data)
+    console.log('workflowInstanceId:', data.workflowInstanceId)
+
     DeleteWorkFlowScheduleLog({
       workflowInstanceId: data.workflowInstanceId
     }).then((res: any) => {
-      ElMessage.success(res.msg)
+      ElMessage.success(res.msg || '删除成功')
       initData()
     }).catch(() => {})
   })

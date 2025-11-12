@@ -392,6 +392,9 @@ function runWorkData() {
         .then((res: any) => {
           runningLoading.value = false
 
+          instanceId.value = res.data.workInstanceId
+          console.log('运行成功，instanceId:', instanceId.value)
+
           const workInstanceId = res.data?.workInstanceId || res.data?.instanceId
 
           if (!workInstanceId) {
@@ -591,7 +594,30 @@ function requestTypeChange() {
 }
 
 function getJsonParseResult() {
+  console.log('getJsonParseResult 被调用')
+  console.log('当前 instanceId:', instanceId.value)
+  console.log('当前 workType:', props.workItemConfig.workType)
+  console.log('parseModalRef:', parseModalRef.value)
+
+  if (!instanceId.value) {
+    ElMessage.warning('请先运行作业后再进行结果解析')
+    return
+  }
+
+  if (!parseModalRef.value) {
+    console.error('parseModalRef 未初始化')
+    ElMessage.error('解析组件未加载')
+    return
+  }
+
+  // ✅ 修改：使用 'API' 而不是 'API_CALL'
+  if (['API'].includes(props.workItemConfig.workType)) {
+    console.log('准备打开解析弹窗')
     parseModalRef.value.showModal(instanceId.value, 'jsonPath')
+  } else {
+    console.warn('不支持的作业类型:', props.workItemConfig.workType)
+    ElMessage.warning('当前作业类型不支持结果解析')
+  }
 }
 
 onMounted(() => {

@@ -312,24 +312,30 @@ export function UnderlineWorkflowData(params: any): Promise<any> {
 export function RunAfterFlowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/runAfterFlow',
-    params: params
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}/run-after-node`,  // ✅ 修改URL
+    data: {
+      work_id: params.workId  // 传递要开始执行的节点ID
+    }
   })
 }
 // 发布作业流--流程图--中断
 export function BreakFlowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/breakFlow',
-    params: params
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}/abort`,  // ✅ 修改URL
+    data: {
+      reason: params.reason || '用户手动中断'
+    }
   })
 }
 // 发布作业流--流程图--重跑当前节点
 export function RerunCurrentNodeFlowData(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/runCurrentNode',
-    params: params
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}/rerun-current-node`,  // ✅ 修改URL
+    data: {
+      work_instance_id: params.workInstanceId  // 传递作业实例ID
+    }
   })
 }
 
@@ -337,8 +343,7 @@ export function RerunCurrentNodeFlowData(params: any): Promise<any> {
 export function ReRunWorkflow(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/workflow/reRunFlow',
-    params: params
+    url: `/api/v1/job-workflow/instance/${params.workflowInstanceId}/rerun`
   })
 }
 
@@ -354,9 +359,8 @@ export function GetInvokeUrl(params: any): Promise<any> {
 // 获取作业返回的jsonPath接口
 export function GetWorkInstanceJsonPath(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/work/getWorkInstanceJsonPath',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-work/instance/${params.workInstanceId}/jsonpath`
   })
 }
 
@@ -364,8 +368,11 @@ export function GetWorkInstanceJsonPath(params: any): Promise<any> {
 export function GetWorkInstanceTablePath(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/getWorkInstanceTablePath',
-    params: params
+    url: `/api/v1/job-work/instance/${params.workInstanceId}/tablepath`,
+    data: {
+      tableRow: params.tableRow,
+      tableCol: params.tableCol
+    }
   })
 }
 
@@ -373,7 +380,9 @@ export function GetWorkInstanceTablePath(params: any): Promise<any> {
 export function GetWorkInstanceRegexPath(params: any): Promise<any> {
   return http.request({
     method: 'post',
-    url: '/work/getWorkInstanceRegexPath',
-    params: params
+    url: `/api/v1/job-work/instance/${params.workInstanceId}/regexpath`,
+    data: {
+      regexStr: params.regexStr
+    }
   })
 }
