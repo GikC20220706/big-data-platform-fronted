@@ -198,7 +198,7 @@ const tabList = reactive([
 ])
 
 const showParse = computed(() => {
-  return ['CURL', 'QUERY_JDBC', 'SPARK_SQL','FLINK_SQL', 'BASH', 'PYTHON'].includes(props.workItemConfig.workType)
+  return ['CURL'].includes(props.workItemConfig.workType)
 })
 function initData() {
   return new Promise((resolve, reject) => {
@@ -518,10 +518,6 @@ function sqlConfigChange(e: string) {
 function getJsonParseResult() {
   if (['CURL'].includes(props.workItemConfig.workType)) {
     parseModalRef.value.showModal(instanceId.value, 'jsonPath')
-  } else if (['QUERY_JDBC', 'SPARK_SQL', 'FLINK_SQL'].includes(props.workItemConfig.workType)) {
-    parseModalRef.value.showModal(instanceId.value, 'tablePath')
-  } else if (['BASH', 'PYTHON'].includes(props.workItemConfig.workType)) {
-    parseModalRef.value.showModal(instanceId.value, 'regexPath')
   }
 }
 
