@@ -350,9 +350,8 @@ export function ReRunWorkflow(params: any): Promise<any> {
 // 外部调用获取链接
 export function GetInvokeUrl(params: any): Promise<any> {
   return http.request({
-    method: 'post',
-    url: '/workflow/getInvokeUrl',
-    params: params
+    method: 'get',
+    url: `/api/v1/job-workflow/invoke-url/${params.workflowId}`
   })
 }
 

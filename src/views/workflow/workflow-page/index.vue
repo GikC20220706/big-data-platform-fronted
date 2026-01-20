@@ -779,32 +779,36 @@ function inputEvent(e: string) {
 
 // 配置设置
 function showConfigDetail() {
-    workflowConfigRef.value.showModal(
-        (data: any) => {
-            return new Promise((resolve: any, reject: any) => {
-                const saveParam = {
-                    workflowId: workFlowData.value.id,
-                    ...data,
-                    invokeStatus: data.invokeStatus ? 'ON' : 'OFF'
-                }
-                SaveWorkflowConfigData(saveParam)
-                    .then((res: any) => {
-                        initFlowData()
-                        ElMessage.success(res.msg)
-                        resolve()
-                    })
-                    .catch((err) => {
-                        reject(err)
-                    })
-            })
-        },
-        {
+  workflowConfigRef.value.showModal(
+      (data: any) => {
+        return new Promise((resolve: any, reject: any) => {
+          const saveParam = {
             workflowId: workFlowData.value.id,
-            cronConfig: cronConfig.value,
-            alarmList: alarmList.value,
-            ...otherConfig.value
-        }
-    )
+            cronConfig: data.cronConfig,
+            alarmList: data.alarmList,
+            otherConfig: data.otherConfig
+          }
+
+          SaveWorkflowConfigData(saveParam).then((res: any) => {
+            ElMessage.success(res.msg || '保存成功')
+            // 保存成功后重新加载工作流数据
+            initData().then(() => {
+              resolve()
+            })
+          }).catch((err: any) => {
+            console.error('保存配置失败:', err)
+            reject(err)
+          })
+        })
+      },
+      {
+        workflowId: workFlowData.value.id,
+        cronConfig: workFlowData.value.cronConfig,
+        alarmList: workFlowData.value.alarmList,
+        invokeStatus: workFlowData.value.otherConfig?.invokeStatus,
+        invokeUrl: workFlowData.value.otherConfig?.invokeUrl
+      }
+  )
 }
 
 // 节点运行日志

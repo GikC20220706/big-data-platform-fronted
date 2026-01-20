@@ -107,168 +107,20 @@
           <!-- 定时调度 -->
           <div class="config-item">
             <div class="item-title">调度配置</div>
-            <el-form
-              ref="cronConfigForm"
-              label-position="left"
-              label-width="120px"
-              :model="cronConfig"
-              :rules="cronConfigRules"
+            <!-- 提示：单个作业不支持独立调度 -->
+            <el-alert
+                title="作业调度说明"
+                type="info"
+                :closable="false"
+                show-icon
             >
-              <el-form-item label="启用">
-                <el-switch v-model="cronConfig.enable" />
-              </el-form-item>
-              <template v-if="cronConfig.enable">
-                <el-form-item label="模式">
-                  <el-radio-group v-model="cronConfig.setMode" size="small" @change="cronTypeChange">
-                    <el-radio-button label="SIMPLE">简易</el-radio-button>
-                    <el-radio-button label="ADVANCE">高级定义</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-                <el-form-item label="生效时间" prop="workDate">
-                  <el-date-picker
-                    v-model="cronConfig.workDate"
-                    type="daterange"
-                    range-separator="至"
-                    start-placeholder="开始生效日期"
-                    end-placeholder="结束生效日期"
-                    value-format="YYYY-MM-DD"
-                  />
-                </el-form-item>
-
-                <el-form-item label="cron表达式" prop="cron" v-if="cronConfig.setMode === 'ADVANCE'">
-                  <el-input
-                    v-model="cronConfig.cron"
-                    placeholder="请输入"
-                  />
-                </el-form-item>
-                <template v-else>
-                  <el-form-item label="调度周期" prop="range">
-                    <el-select v-model="cronConfig.range" placeholder="请选择" :disabled="!cronConfig.enable" @change="changeScheduleRangeEvent">
-                      <el-option
-                        v-for="item in scheduleRange"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                      />
-                    </el-select>
-                  </el-form-item>
-                  <!-- 调度周期 -> 秒 -->
-                  <template v-if="cronConfig.range === 'sec'">
-                    <el-form-item label="结束时间" prop="endDate">
-                      <el-date-picker :disabled="!cronConfig.enable" v-model="cronConfig.endDate" type="date" placeholder="请选择" clearable />
-                    </el-form-item>
-                  </template>
-                  <!-- 调度周期 -> 分钟 -->
-                  <template v-if="cronConfig.range === 'min'">
-                    <el-form-item label="开始时间" prop="startDateMin">
-                      <el-time-select
-                        v-model="cronConfig.startDateMin"
-                        :disabled="!cronConfig.enable"
-                        start="00:00"
-                        step="01:00"
-                        end="23:00"
-                        placeholder="请选择">
-                      </el-time-select>
-                    </el-form-item>
-                    <el-form-item label="时间间隔（分钟）" prop="minNum">
-                      <el-input-number :disabled="!cronConfig.enable" v-model="cronConfig.minNum" :min="0" controls-position="right" />
-                    </el-form-item>
-                    <el-form-item label="结束时间" prop="endDateMin">
-                      <el-time-select
-                        v-model="cronConfig.endDateMin"
-                        :disabled="!cronConfig.enable"
-                        start="00:00"
-                        step="01:00"
-                        end="23:00"
-                        placeholder="请选择">
-                      </el-time-select>
-                    </el-form-item>
-                  </template>
-                  <!-- 调度周期 -> 小时 -->
-                  <template v-if="cronConfig.range === 'hour'">
-                    <el-form-item label="开始时间" prop="startDate">
-                      <el-time-select
-                        :disabled="!cronConfig.enable"
-                        v-model="cronConfig.startDate"
-                        start="00:00"
-                        step="01:00"
-                        end="23:00"
-                        placeholder="请选择">
-                      </el-time-select>
-                    </el-form-item>
-                    <el-form-item label="时间间隔（小时）" prop="hourNum">
-                      <el-input-number :disabled="!cronConfig.enable" v-model="cronConfig.hourNum" :min="0" controls-position="right" />
-                    </el-form-item>
-                    <el-form-item label="结束时间" prop="endDate">
-                      <el-time-select
-                        v-model="cronConfig.endDate"
-                        :disabled="!cronConfig.enable"
-                        start="00:00"
-                        step="01:00"
-                        end="23:00"
-                        placeholder="请选择">
-                      </el-time-select>
-                    </el-form-item>
-                  </template>
-                  <!-- 调度周期 -> 日 -->
-                  <template v-if="cronConfig.range === 'day'">
-                    <el-form-item label="调度时间" prop="scheduleDate">
-                      <el-time-picker
-                        :disabled="!cronConfig.enable"
-                        v-model="cronConfig.scheduleDate"
-                        format="HH:mm"
-                        value-format="HH:mm"
-                        placeholder="请选择"
-                      />
-                    </el-form-item>
-                  </template>
-                  <!-- 调度周期 -> 月 -->
-                  <template v-if="cronConfig.range === 'month'">
-                    <el-form-item label="调度时间" prop="scheduleDate">
-                      <el-time-picker
-                        :disabled="!cronConfig.enable"
-                        v-model="cronConfig.scheduleDate"
-                        format="HH:mm"
-                        value-format="HH:mm"
-                        placeholder="请选择"
-                      />
-                    </el-form-item>
-                    <el-form-item label="指定时间" prop="monthDay">
-                      <el-select v-model="cronConfig.monthDay" :disabled="!cronConfig.enable" placeholder="请选择">
-                        <el-option
-                          v-for="item in dayList"
-                          :key="item.value"
-                          :label="item.label"
-                          :value="item.value"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </template>
-                  <!-- 调度周期 -> 周 -->
-                  <template v-if="cronConfig.range === 'week'">
-                    <el-form-item label="调度时间" prop="scheduleDate">
-                      <el-time-picker
-                        :disabled="!cronConfig.enable"
-                        v-model="cronConfig.scheduleDate"
-                        format="HH:mm"
-                        value-format="HH:mm"
-                        placeholder="请选择"
-                      />
-                    </el-form-item>
-                    <el-form-item label="指定时间" prop="weekDate">
-                      <el-select v-model="cronConfig.weekDate" placeholder="请选择" :disabled="!cronConfig.enable">
-                        <el-option
-                          v-for="item in weekDateList"
-                          :key="item.value"
-                          :label="item.label"
-                          :value="item.value"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </template>
-                </template>
+              <template #default>
+                <div style="line-height: 1.6;">
+                  单个作业的调度由所属作业流统一管理。<br/>
+                  请在作业流的"配置"中设置整体调度时间。
+                </div>
               </template>
-            </el-form>
+            </el-alert>
           </div>
           <el-divider />
           <!-- 同步规则 -->
@@ -544,6 +396,9 @@ function showModal(data?: any, cb?: any) {
     if (['SPARK_CONTAINER_SQL'].includes(data.workType)) {
       getSparkContainerList(true)
     }
+    if (data && ['QUERY_JDBC', 'PRQL', 'EXE_JDBC'].includes(data.workType)) {
+      getDataSourceList(true)  // 确保这行代码存在
+    }
     // 获取函数配置和依赖配置
     getFuncList()
     getFileCenterList()
@@ -601,46 +456,58 @@ function getAlarmConfigList() {
 
 function getConfigDetailData() {
   GetWorkItemConfig({
-      workId: workItemConfig.value.id
+    workId: workItemConfig.value.id
   }).then((res: any) => {
+    // ✅ 关键修改：保存完整的work配置，包括config
+    workItemConfig.value = {
+      ...workItemConfig.value,
+      config: res.data.config || {}
+    }
+
+    const config = res.data.config || {}
+
+    // 提取数据源配置
     if (['QUERY_JDBC', 'PRQL', 'EXE_JDBC'].includes(workItemConfig.value.workType)) {
-      dataSourceForm.datasourceId = res.data.datasourceId
+      dataSourceForm.datasourceId = config.dataSourceId || res.data.datasourceId
     }
-    if (res.data.clusterConfig) {
-      Object.keys(clusterConfig).forEach((key: string) => {
-        if (key !== 'datasourceId') {
-          clusterConfig[key] = res.data.clusterConfig[key]
-        }
-      })
-      clusterConfig.sparkConfigJson = jsonFormatter(clusterConfig.sparkConfigJson)
-      clusterConfig.flinkConfigJson = jsonFormatter(clusterConfig.flinkConfigJson)
-    }
-    if (['SPARK_SQL'].includes(workItemConfig.value.workType)) {
-      clusterConfig.datasourceId = res.data.datasourceId
-    }
-    if (res.data.cronConfig) {
+
+    // 提取调度配置
+    if (config.cronConfig) {
       Object.keys(cronConfig).forEach((key: string) => {
-        cronConfig[key] = res.data.cronConfig[key]
+        cronConfig[key] = config.cronConfig[key]
       })
     }
-    if (res.data.syncRule) {
+
+    // 提取同步规则
+    if (config.syncRule) {
       Object.keys(syncRule).forEach((key: string) => {
-        syncRule[key] = res.data.syncRule[key]
+        syncRule[key] = config.syncRule[key]
       })
       syncRule.sqlConfigJson = jsonFormatter(syncRule.sqlConfigJson)
     }
-    fileConfig.funcList = res.data.funcList || []
-    fileConfig.libList = res.data.libList || []
+
+    // 提取文件配置
+    fileConfig.funcList = config.funcList || []
+    fileConfig.libList = config.libList || []
+
+    // 提取容器配置
+    if (config.containerId) {
+      containerConfig.containerId = config.containerId
+    }
+
+    // 提取告警配置
+    if (config.alarmList) {
+      messageConfig.alarmList = config.alarmList
+    }
+
+    // 设置默认模式
     clusterConfig.setMode = clusterConfig.setMode || 'SIMPLE'
     cronConfig.setMode = cronConfig.setMode || 'SIMPLE'
     syncRule.setMode = syncRule.setMode || 'SIMPLE'
-    containerConfig.containerId = res.data.containerId
-
-    messageConfig.alarmList = res.data.alarmList
 
     getClusterNodeList(true)
   }).catch((err: any) => {
-    console.error(err)
+    console.error('获取配置失败:', err)
   })
 }
 
@@ -662,28 +529,37 @@ function okEvent() {
 function saveAllConfig() {
   drawerConfig.okConfig.loading = true
 
-  // ✅ 构建保存参数 - 注意字段名和数据类型
-  const saveParams: any = {
-    workId: workItemConfig.value.id
-  }
+  // ✅ 获取原配置，包含SQL
+  const originalConfig = workItemConfig.value.config || {}
+
+  // ✅ 从原配置开始构建，保留SQL字段
+  const config: any = { ...originalConfig }
 
   // 数据源ID（JDBC作业）
   if (['QUERY_JDBC', 'PRQL', 'EXE_JDBC'].includes(workItemConfig.value.workType)) {
-    // ✅ 确保 datasourceId 是数字，不是数组
-    saveParams.datasourceId = typeof dataSourceForm.datasourceId === 'number'
+    const datasourceId = typeof dataSourceForm.datasourceId === 'number'
         ? dataSourceForm.datasourceId
         : (Array.isArray(dataSourceForm.datasourceId) ? dataSourceForm.datasourceId[0] : parseInt(dataSourceForm.datasourceId))
+
+    if (datasourceId) {
+      config.dataSourceId = datasourceId
+    }
   }
 
   // 调度配置
   if (cronConfig.enable) {
-    saveParams.cronConfig = {
-      enable: cronConfig.enable,
+    // 先生成cron表达式
+    getCron()
+    const generatedCron = `${state.secondsText || '*'} ${state.minutesText || '*'} ${state.hoursText || '*'} ${
+        state.daysText || '*'
+    } ${state.monthsText || '*'} ${state.weeksText || '?'} ${state.yearsText || '*'}`
+
+    config.cronConfig = {
+      enable: true,
       setMode: cronConfig.setMode,
       workDate: cronConfig.workDate,
-      cron: cronConfig.setMode === 'ADVANCE' ? cronConfig.cron : undefined,
+      cron: cronConfig.setMode === 'ADVANCE' ? cronConfig.cron : generatedCron,
       range: cronConfig.setMode === 'SIMPLE' ? cronConfig.range : undefined,
-      // 简易模式的其他参数
       startDateMin: cronConfig.startDateMin,
       minNum: cronConfig.minNum,
       endDateMin: cronConfig.endDateMin,
@@ -695,12 +571,12 @@ function saveAllConfig() {
       monthDay: cronConfig.monthDay
     }
   } else {
-    saveParams.cronConfig = { enable: false }
+    config.cronConfig = { enable: false }
   }
 
   // 集群配置（Spark/Flink作业）
   if (!['QUERY_JDBC', 'PRQL', 'EXE_JDBC', 'CURL', 'API'].includes(workItemConfig.value.workType)) {
-    saveParams.clusterConfig = {
+    config.clusterConfig = {
       setMode: clusterConfig.setMode,
       resourceLevel: clusterConfig.resourceLevel,
       clusterId: clusterConfig.clusterId,
@@ -712,15 +588,41 @@ function saveAllConfig() {
     }
   }
 
-  // 同步规则（数据同步作业）
+  // 同步规则
   if (['DATA_SYNC_JDBC'].includes(workItemConfig.value.workType)) {
-    saveParams.syncRule = {
+    config.syncRule = {
       setMode: syncRule.setMode,
       numPartitions: syncRule.numPartitions,
       numConcurrency: syncRule.numConcurrency,
       sqlConfigJson: syncRule.sqlConfigJson
     }
   }
+
+  // 容器配置
+  if (containerConfig.containerId) {
+    config.containerId = containerConfig.containerId
+  }
+
+  // 文件配置
+  if (fileConfig.funcList && fileConfig.funcList.length > 0) {
+    config.funcList = fileConfig.funcList
+  }
+  if (fileConfig.libList && fileConfig.libList.length > 0) {
+    config.libList = fileConfig.libList
+  }
+
+  // 告警配置
+  if (messageConfig.alarmList && messageConfig.alarmList.length > 0) {
+    config.alarmList = messageConfig.alarmList
+  }
+
+  // ✅ 构建最终请求参数 - 使用config包装
+  const saveParams = {
+    workId: workItemConfig.value.id,
+    config: config  // 包含完整的config，包括SQL
+  }
+
+  console.log('保存配置参数:', saveParams)
 
   // 调用保存接口
   SaveWorkItemConfig(saveParams).then((res: any) => {
@@ -732,7 +634,7 @@ function saveAllConfig() {
     }
   }).catch((err: any) => {
     console.error('保存配置失败:', err)
-    ElMessage.error(err.message || '保存失败')
+    ElMessage.error(err.response?.data?.detail || err.message || '保存失败')
     drawerConfig.okConfig.loading = false
   })
 }
@@ -826,19 +728,35 @@ function getDataSourceList(e: boolean, searchType?: string) {
   if (e) {
     GetDatasourceList({
       page: 1,
-      pageSize: 100,
-      searchKeyWord: searchType || ''
+      page_size: 100,
+      include_table_count: false,
+      fast_mode: true
     }).then((res: any) => {
-      dataSourceList.value = res.data.content.map((item: any) => {
+      console.log('数据源列表返回:', res)
+
+      // 兼容不同的响应格式
+      let sources = []
+      if (res.data && res.data.sources) {
+        sources = res.data.sources
+      } else if (res.data && Array.isArray(res.data)) {
+        sources = res.data
+      } else if (res.data && res.data.content) {
+        sources = res.data.content
+      }
+
+      dataSourceList.value = sources.map((item: any) => {
         return {
-          label: item.name,
-          value: item.id
+          label: item.name || item.display_name || item.source_name,
+          value: item.id || item.source_id
         }
       })
+
+      console.log('处理后的数据源列表:', dataSourceList.value)
     })
-    .catch(() => {
-      dataSourceList.value = []
-    })
+        .catch((err) => {
+          console.error('获取数据源列表失败:', err)
+          dataSourceList.value = []
+        })
   }
 }
 
