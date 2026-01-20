@@ -415,8 +415,8 @@ function showModal(data?: any, cb?: any) {
 
 function getFileCenterList() {
     GetFileCenterList({
-        page: 0,
-        pageSize: 10000,
+        page: 1,
+        pageSize: 100,
         searchKeyWord: '',
         type: 'LIB'
     }).then((res: any) => {
@@ -432,8 +432,8 @@ function getFileCenterList() {
 }
 function getFuncList() {
     GetCustomFuncList({
-        page: 0,
-        pageSize: 10000,
+        page: 1,
+        pageSize: 100,
         searchKeyWord: ''
     }).then((res: any) => {
         fileIdList.value = res.data.content
@@ -478,6 +478,33 @@ function getConfigDetailData() {
       })
     }
 
+    // ========== Bash/Python作业：加载集群配置 ==========
+    if (['BASH', 'PYTHON'].includes(workItemConfig.value.workType)) {
+      clusterConfig.clusterId = config.clusterId || ''
+      clusterConfig.clusterNodeId = config.clusterNodeId || ''
+
+      // 如果有集群ID，加载节点列表
+      if (clusterConfig.clusterId) {
+        getClusterNodeList(true)
+      }
+    }
+
+    // ========== Spark/Flink SQL作业：加载集群配置 ==========
+    if (['SPARK_SQL', 'FLINK_SQL'].includes(workItemConfig.value.workType)) {
+      clusterConfig.clusterId = config.clusterId || ''
+      clusterConfig.clusterNodeId = config.clusterNodeId || ''
+      clusterConfig.setMode = config.setMode || 'SIMPLE'
+      clusterConfig.resourceLevel = config.resourceLevel || ''
+      clusterConfig.enableHive = config.enableHive || false
+      clusterConfig.datasourceId = config.datasourceId || ''
+      clusterConfig.sparkConfigJson = jsonFormatter(config.sparkConfigJson)
+      clusterConfig.flinkConfigJson = jsonFormatter(config.flinkConfigJson)
+
+      if (clusterConfig.clusterId) {
+        getClusterNodeList(true)
+      }
+    }
+
     // 提取同步规则
     if (config.syncRule) {
       Object.keys(syncRule).forEach((key: string) => {
@@ -498,6 +525,16 @@ function getConfigDetailData() {
     // 提取告警配置
     if (config.alarmList) {
       messageConfig.alarmList = config.alarmList
+    }
+
+    // Spark Container
+    if (['SPARK_CONTAINER_SQL'].includes(workItemConfig.value.workType)) {
+      containerConfig.containerId = config.containerId
+    }
+
+    // 调用获取集群列表
+    if (!['QUERY_JDBC', 'PRQL', 'EXE_JDBC'].includes(workItemConfig.value.workType)) {
+      getClusterList()
     }
 
     // 设置默认模式
@@ -573,7 +610,12 @@ function saveAllConfig() {
   } else {
     config.cronConfig = { enable: false }
   }
-
+  // ========== Bash/Python作业：集群配置 ==========
+  if (['BASH', 'PYTHON'].includes(workItemConfig.value.workType)) {
+    config.clusterId = clusterConfig.clusterId || null
+    config.clusterNodeId = clusterConfig.clusterNodeId || null
+    config.timeout = 300
+  }
   // 集群配置（Spark/Flink作业）
   if (!['QUERY_JDBC', 'PRQL', 'EXE_JDBC', 'CURL', 'API'].includes(workItemConfig.value.workType)) {
     config.clusterConfig = {
@@ -691,8 +733,8 @@ function getCron() {
 
 function getClusterList() {
   GetComputerGroupList({
-    page: 0,
-    pageSize: 10000,
+    page: 1,
+    pageSize: 100,
     searchKeyWord: ''
   }).then((res: any) => {
     clusterList.value = res.data.content.map((item: any) => {
@@ -709,7 +751,7 @@ function getClusterNodeList(e: boolean) {
   if (e && clusterConfig.clusterId) {
     GetComputerPointData({
       page: 0,
-      pageSize: 10000,
+      pageSize: 100,
       searchKeyWord: '',
       clusterId: clusterConfig.clusterId
     }).then((res: any) => {
@@ -763,8 +805,8 @@ function getDataSourceList(e: boolean, searchType?: string) {
 function getSparkContainerList(e: boolean, searchType?: string) {
   if (e) {
     GetSparkContainerList({
-      page: 0,
-      pageSize: 10000,
+      page: 1,
+      pageSize: 100,
       searchKeyWord: ''
     }).then((res: any) => {
       containerIdList.value = res.data.content.map((item: any) => {

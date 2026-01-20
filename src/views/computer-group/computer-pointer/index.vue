@@ -121,7 +121,7 @@ function initData(tableLoading?: boolean, type?: string) {
     page: tableConfig.pagination.currentPage - 1,
     pageSize: tableConfig.pagination.pageSize,
     searchKeyWord: keyword.value,
-    clusterId: route.query.id
+    clusterId: route.query.clusterId
   })
     .then((res: any) => {
       if (type) {
@@ -158,7 +158,7 @@ function addData() {
     return new Promise((resolve: any, reject: any) => {
       AddComputerPointData({
         ...formData,
-        clusterId: route.query.id
+        clusterId: route.query.clusterId
       })
         .then((res: any) => {
           ElMessage.success(res.msg)
@@ -178,7 +178,7 @@ function editNodeData(data: any) {
     return new Promise((resolve: any, reject: any) => {
       EditComputerPointData({
         ...formData,
-        clusterId: route.query.id
+        clusterId: route.query.clusterId
       })
         .then((res: any) => {
           ElMessage.success(res.msg)
@@ -201,7 +201,7 @@ function showLog(e: any) {
 function stopAgent(data: any) {
   data.stopAgentLoading = true
   StopComputerPointData({
-    engineNodeId: data.id
+    id: data.id
   }).then((res: any) => {
     ElMessage.success(res.msg)
     data.stopAgentLoading = false
@@ -215,7 +215,7 @@ function stopAgent(data: any) {
 function startAgent(data: any) {
   data.stopAgentLoading = true
   StartComputerPointData({
-    engineNodeId: data.id
+    id: data.id
   }).then((res: any) => {
     ElMessage.success(res.msg)
     data.stopAgentLoading = false
@@ -229,7 +229,7 @@ function startAgent(data: any) {
 function installData(data: any) {
   data.installLoading = true
   InstallComputerPointData({
-    engineNodeId: data.id
+    id: data.id
   })
     .then((res: any) => {
       ElMessage.success(res.msg)
@@ -245,7 +245,7 @@ function installData(data: any) {
 function uninstallData(data: any) {
   data.uninstallLoading = true
   UninstallComputerPointData({
-    engineNodeId: data.id
+    id: data.id
   })
     .then((res: any) => {
       ElMessage.success(res.msg)
@@ -261,7 +261,7 @@ function uninstallData(data: any) {
 function cleanData(data: any) {
   data.cleanLoading = true
   CleanComputerPointData({
-    engineNodeId: data.id
+    id: data.id
   })
     .then((res: any) => {
       ElMessage.success(res.msg)
@@ -277,7 +277,7 @@ function cleanData(data: any) {
 function checkData(data: any) {
   data.checkLoading = true
   CheckComputerPointData({
-    engineNodeId: data.id
+    id: data.id
   })
     .then((res: any) => {
       data.checkLoading = false
@@ -311,7 +311,7 @@ function deleteData(data: any) {
     type: 'warning'
   }).then(() => {
     DeleteComputerPointData({
-      engineNodeId: data.id
+      id: data.id
     })
       .then((res: any) => {
         ElMessage.success(res.msg)

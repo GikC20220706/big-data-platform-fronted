@@ -845,16 +845,21 @@ function tableChangeEvent(e: string, dataSourceId: string, type: string) {
     const sourceItem = currentList.find(s => s.value == dataSourceId)
 
     if (sourceItem) {
+      // ✅ 1. 先清空右侧字段和连线
+      dataSyncTableRef.value?.clearTargetColumns()
+
+      // ✅ 2. 然后加载新的源表字段
       dataSyncTableRef.value.getTableColumnData({
         dataSourceName: sourceItem.label,
         tableName: e
-      }, type)
+      }, 'source')
+
     } else {
       console.error('找不到数据源:', dataSourceId)
     }
+
   } else if (type === 'target') {
     // 目标表输入框变化,不需要获取字段
-    // 目标表会自动创建,字段由连线映射生成
     ElMessage.info('目标表会自动创建,字段将根据连线映射生成')
   }
 }
