@@ -416,8 +416,8 @@ function getDataSource(e: boolean, sourceType: string, type: string) {
     if (e && sourceType) {
         let options = []
         GetDatasourceList({
-            page: 0,
-            pageSize: 10000,
+            page: 1,
+            pageSize: 100,
             searchKeyWord: sourceType || ''
         }).then((res: any) => {
             options = res.data.content.map((item: any) => {
@@ -507,8 +507,8 @@ function getDataSourceTable(e: boolean, dataSourceId: string, type: string) {
 function getKafkaSourceTable(e: boolean, sourceType: string) {
     if (e && sourceType) {
         GetDatasourceList({
-            page: 0,
-            pageSize: 10000,
+            page: 1,
+            pageSize: 100,
             searchKeyWord: sourceType || ''
         }).then((res: any) => {
             kafkaSourceList.value = res.data.content.map((item: any) => {

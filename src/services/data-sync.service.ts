@@ -48,13 +48,12 @@ export function GetDataSourceTables(params: SourceTablesParam): Promise<any> {
         method: 'get',
         url: `/api/v1/integration/sources/${params.dataSourceId}/tables`,
         params: {
-            limit: 1000,
+            limit: 100,
             offset: 0
         }
     })
 }
 
-// 作业流-数据同步-数据预览
 // 作业流-数据同步-数据预览
 export function GetSourceTablesDetail(params: TableDetailParam): Promise<any> {
     // 使用新的预览接口
@@ -146,27 +145,28 @@ export function GetDataSyncDetail(params: workIdParam): Promise<any> {
 
 // 作业流-Excel导入-数据预览
 export function GetExcelDataPreviewDetail(params: any): Promise<any> {
+    // ✅ 手动构建带参数的URL
+    const queryString = new URLSearchParams(params).toString()
     return http.request({
         method: 'post',
-        url: '/work/getExcelData',
-        params: params
+        url: `/api/v1/job-work/getExcelData?${queryString}`,  // ✅ 参数直接拼接到URL
     })
 }
 
 // 作业流-Excel导入-文件名预览
 export function GetExcelReplaceName(params: any): Promise<any> {
+    const queryString = new URLSearchParams(params).toString()
     return http.request({
         method: 'post',
-        url: '/work/parseExcelName',
-        params: params
+        url: `/api/v1/job-work/parseExcelName?${queryString}`,
     })
 }
 
 // 作业流-Excel导入-获取Excel字段信息
 export function GetExcelTableColumnsCodes(params: any): Promise<any> {
+    const queryString = new URLSearchParams(params).toString()
     return http.request({
         method: 'post',
-        url: '/work/getExcelColumns',
-        params: params
+        url: `/api/v1/job-work/getExcelColumns?${queryString}`,
     })
 }

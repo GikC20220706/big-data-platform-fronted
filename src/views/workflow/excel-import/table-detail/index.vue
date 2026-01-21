@@ -52,23 +52,17 @@ function getResultDatalist() {
     GetExcelDataPreviewDetail(info.value).then((res: any) => {
         const col = res.data.columns
         const tableData = res.data.rows
-        tableConfig.colConfigs = col.map((colunm: any) => {
-            return {
-                prop: colunm,
-                title: colunm,
-                minWidth: 100,
-                showHeaderOverflow: true,
-                showOverflowTooltip: true
-            }
+        tableConfig.colConfigs = col.map((column: any) => {
+          return {
+            prop: column.code,   // ✅ 用 code 作为属性名
+            title: column.name,  // ✅ 用 name 作为表头显示
+            minWidth: 100,
+            showHeaderOverflow: true,
+            showOverflowTooltip: true
+          }
         })
-        tableConfig.tableData = []
-        res.data.rows.forEach(rowData => {
-            const columnData = {}
-            col.forEach((cl, index) => {
-                columnData[cl] = rowData[index]
-            })
-            tableConfig.tableData.push(columnData)
-        })
+
+      tableConfig.tableData = res.data.rows
         tableConfig.loading = false
     })
     .catch(() => {

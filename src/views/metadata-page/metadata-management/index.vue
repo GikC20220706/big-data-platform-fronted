@@ -222,8 +222,8 @@ function refreshDataEvent() {
 
 function getDataSourceList() {
     GetMetadataManagementList({
-        page: 0,
-        pageSize: 10000,
+        page: 1,
+        pageSize: 100,
         searchKeyWord: ''
     }).then((res: any) => {
         dataSourceList.value = res.data.content.filter((item: any) => item.dbType !== 'KAFKA').map((item: any) => {

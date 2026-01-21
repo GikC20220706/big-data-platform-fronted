@@ -229,7 +229,7 @@ function testFun() {
       host: formData.host,
       port: formData.port || '22',
       username: formData.username,
-      passwd: formData.passwd
+      passwd: formData.password
     }).then((res: any) => {
       testLoading.value = false
       testResult.value = res.data

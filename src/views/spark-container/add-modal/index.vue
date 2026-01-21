@@ -168,8 +168,8 @@ function getClusterList(e: boolean) {
 function getDataSourceList(e: boolean, searchType?: string) {
   if (e) {
     GetDatasourceList({
-      page: 0,
-      pageSize: 10000,
+      page: 1,
+      pageSize: 100,
       searchKeyWord: 'HIVE'
     }).then((res: any) => {
       dataSourceList.value = res.data.content.map((item: any) => {

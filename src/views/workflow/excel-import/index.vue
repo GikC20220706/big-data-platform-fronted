@@ -149,6 +149,7 @@
 import { ref, reactive, onMounted, defineProps, nextTick, markRaw } from 'vue'
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from 'element-plus'
 // import CodeMirror from 'vue-codemirror6'
+import { http } from '@/utils/http'
 import { sql } from '@codemirror/lang-sql'
 import { DataSourceType, OverModeList } from './data.config.ts'
 import { GetDatasourceList } from '@/services/datasource.service'
@@ -250,51 +251,54 @@ function tabChangeEvent(e: string) {
 
 // 保存数据
 function saveData() {
-    btnLoadingConfig.saveLoading = true
-    SaveWorkItemConfig({
-        workId: formData.workId,
-        excelSyncConfig: {
-            ...formData,
-            sourceTableColumn: dataSyncTableRef.value.getSourceTableColumn(),
-            targetTableColumn: dataSyncTableRef.value.getTargetTableColumn(),
-            columnMap: dataSyncTableRef.value.getConnect()
-        }
-    }).then((res: any) => {
-        changeStatus.value = false
-        btnLoadingConfig.saveLoading = false
-        ElMessage.success('保存成功')
-    }).catch(err => {
-        btnLoadingConfig.saveLoading = false
-        console.error(err)
-    })
+  btnLoadingConfig.saveLoading = true
+  SaveWorkItemConfig({
+    workId: formData.workId,
+    config: {  // ✅ 改成 config
+      ...formData,
+      sourceTableColumn: dataSyncTableRef.value.getSourceTableColumn(),
+      targetTableColumn: dataSyncTableRef.value.getTargetTableColumn(),
+      columnMap: dataSyncTableRef.value.getConnect()
+    }
+  }).then((res: any) => {
+    changeStatus.value = false
+    btnLoadingConfig.saveLoading = false
+    ElMessage.success('保存成功')
+  }).catch(err => {
+    btnLoadingConfig.saveLoading = false
+    console.error(err)
+  })
 }
 
 function getDate() {
-    GetWorkItemConfig({
-        workId: props.workItemConfig.id
-    }).then((res: any) => {
-        if (res.data.excelSyncConfig) {
-            formData.sourceFileId = res.data.excelSyncConfig.sourceFileId
-            formData.hasHeader = res.data.excelSyncConfig.hasHeader
-            formData.fileReplace = res.data.excelSyncConfig.fileReplace
-            formData.filePattern = res.data.excelSyncConfig.filePattern
-            formData.queryCondition = res.data.excelSyncConfig.queryCondition
-            formData.targetDBType = res.data.excelSyncConfig.targetDBType
-            formData.targetDBId = res.data.excelSyncConfig.targetDBId
-            formData.targetTable = res.data.excelSyncConfig.targetTable
-            formData.overMode = res.data.excelSyncConfig.overMode
+  GetWorkItemConfig({
+    workId: props.workItemConfig.id
+  }).then((res: any) => {
+    // ✅ 改成从 config 读取，而不是 excelSyncConfig
+    if (res.data.config || res.data.excelSyncConfig) {
+      const config = res.data.config || res.data.excelSyncConfig  // 兼容两种格式
 
-            nextTick(() => {
-                getFileCenterList(true)
-                getDataSource(true, formData.targetDBType, 'target')
-                getDataSourceTable(true, formData.targetDBId, 'target')
-                dataSyncTableRef.value.initPageData(res.data.excelSyncConfig)
-                changeStatus.value = false
-            })
-        }
-    }).catch(err => {
-        console.error(err)
-    })
+      formData.sourceFileId = config.sourceFileId
+      formData.hasHeader = config.hasHeader
+      formData.fileReplace = config.fileReplace
+      formData.filePattern = config.filePattern
+      formData.queryCondition = config.queryCondition
+      formData.targetDBType = config.targetDBType
+      formData.targetDBId = config.targetDBId
+      formData.targetTable = config.targetTable
+      formData.overMode = config.overMode
+
+      nextTick(() => {
+        getFileCenterList(true)
+        getDataSource(true, formData.targetDBType, 'target')
+        getDataSourceTable(true, formData.targetDBId, 'target')
+        dataSyncTableRef.value.initPageData(config)
+        changeStatus.value = false
+      })
+    }
+  }).catch(err => {
+    console.error(err)
+  })
 }
 // 运行
 function runWorkData() {
@@ -387,51 +391,106 @@ function getFileCenterList(e: boolean) {
 
 // 获取数据源
 function getDataSource(e: boolean, sourceType: string, type: string) {
+  return new Promise((resolve, reject) => {
     if (e && sourceType) {
-        let options = []
-        GetDatasourceList({
-            page: 0,
-            pageSize: 10000,
-            searchKeyWord: sourceType || ''
-        }).then((res: any) => {
-            options = res.data.content.map((item: any) => {
+      GetDatasourceList({
+        page: 1,
+        page_size: 100,
+        include_table_count: false,
+        fast_mode: true
+      }).then((res: any) => {
+        if (res.code === 200 && res.data && Array.isArray(res.data.sources)) {
+          const options = res.data.sources
+              .filter((item: any) => {
+                const itemType = (item.type || '').toUpperCase()
+                return itemType === sourceType.toUpperCase()  // ✅ 按类型过滤
+              })
+              .map((item: any) => {
                 return {
-                    label: item.name,
-                    value: item.id
+                  label: item.name,
+                  value: item.id
                 }
-            })
-            type === 'source' ? sourceList.value = options : targetList.value = options
-        }).catch(err => {
-            console.error(err)
-            type === 'source' ? sourceList.value = [] : targetList.value = []
-        })
-    } else {
+              })
+
+          type === 'source' ? sourceList.value = options : targetList.value = options
+          resolve(options)
+        } else {
+          type === 'source' ? sourceList.value = [] : targetList.value = []
+          resolve([])
+        }
+      }).catch(err => {
+        console.error(err)
         type === 'source' ? sourceList.value = [] : targetList.value = []
+        reject(err)
+      })
+    } else {
+      type === 'source' ? sourceList.value = [] : targetList.value = []
+      resolve([])
     }
+  })
 }
 
 // 获取数据源表
-function getDataSourceTable(e: boolean, dataSourceId: string, type: string) {
-    if (e && dataSourceId) {
-        let options = []
-        GetDataSourceTables({
-            dataSourceId: dataSourceId,
-            tablePattern: ""
-        }).then((res: any) => {
-            options = res.data.tables.map((item: any) => {
-                return {
-                    label: item,
-                    value: item
-                }
-            })
-            type === 'source' ? sourceTablesList.value = options : targetTablesList.value = options
-        }).catch(err => {
-            console.error(err)
-            type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
-        })
-    } else {
-        type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+async function getDataSourceTable(e: boolean, dataSourceId: string, type: string) {
+  if (!e || !dataSourceId) {
+    type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+    return Promise.resolve([])
+  }
+
+  try {
+    let currentList = type === 'source' ? sourceList.value : targetList.value
+    const dbType = type === 'source' ? formData.sourceDBType : formData.targetDBType
+
+    // ✅ 如果列表为空，先加载数据源
+    if (currentList.length === 0 && dbType) {
+      await getDataSource(true, dbType, type)
+      currentList = type === 'source' ? sourceList.value : targetList.value
     }
+
+    // ✅ 通过ID找到数据源名称
+    const sourceItem = currentList.find(s => s.value == dataSourceId)
+    if (!sourceItem) {
+      console.error('找不到数据源,ID:', dataSourceId)
+      ElMessage.warning('找不到对应的数据源')
+      type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+      return Promise.resolve([])
+    }
+
+    // ✅ 使用名称调用API
+    const url = `/api/v1/integration/sources/${encodeURIComponent(sourceItem.label)}/tables`
+    const response = await http.request({
+      method: 'get',
+      url: url,
+      params: {
+        limit: 1000,
+        offset: 0
+      }
+    })
+
+    if (response.code === 200 && response.data) {
+      const tables = response.data.tables || response.data || []
+      const options = tables.map((item: any) => {
+        const tableName = item.table_name || item.name || item
+        return {
+          label: tableName,
+          value: tableName
+        }
+      })
+
+      await nextTick()
+
+      if (type === 'source') {
+        sourceTablesList.value = options
+      } else {
+        targetTablesList.value = options
+      }
+
+      return Promise.resolve(options)
+    }
+  } catch (err) {
+    type === 'source' ? sourceTablesList.value = [] : targetTablesList.value = []
+    return Promise.resolve([])
+  }
 }
 
 // 数据预览
